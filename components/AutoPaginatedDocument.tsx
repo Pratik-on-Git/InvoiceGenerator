@@ -73,7 +73,8 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
   const [scales, setScales] = useState<Record<number, number>>({});
   const contentRefs = useRef(new Map<number, HTMLDivElement>());
   const blockedPulls = useRef(new Set<number>());
-  const pullTrial = useRef<{ boundary: number; block: string } | null>(null);
+  const pullCaps = useRef(new Map<number, number>());
+  const pullTrial = useRef<{ boundary: number; blocks: string[] } | null>(null);
 
   // React immediately retries this render with the reconciled partition. That
   // prevents even a one-frame gap where a newly inserted tail block (and its
@@ -94,6 +95,7 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
     const id = window.setTimeout(() => {
       if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) return;
       blockedPulls.current.clear();
+      pullCaps.current.clear();
       pullTrial.current = null;
       setScales({});
     }, 80);
@@ -120,17 +122,20 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
 
       const trial = pullTrial.current;
       if (trial?.boundary === pageIndex) {
-        // The speculative pull did not fit. Put that exact block back and
-        // remember the boundary until document content changes.
-        blockedPulls.current.add(pageIndex);
+        // The speculative batch did not fit. Put it back, then retry with a
+        // smaller prefix. A one-block failure proves this boundary is full.
+        if (trial.blocks.length === 1) blockedPulls.current.add(pageIndex);
+        else pullCaps.current.set(pageIndex, Math.max(1, Math.floor(trial.blocks.length / 2)));
         pullTrial.current = null;
         setPages((current) => {
           const next = current.map((items) => [...items]);
           const currentPage = next[pageIndex];
-          if (!currentPage || currentPage[currentPage.length - 1] !== trial.block) return current;
-          currentPage.pop();
-          if (next[pageIndex + 1]) next[pageIndex + 1].unshift(trial.block);
-          else next.splice(pageIndex + 1, 0, [trial.block]);
+          if (!currentPage) return current;
+          const trialStart = currentPage.length - trial.blocks.length;
+          if (trialStart < 0 || trial.blocks.some((key, index) => currentPage[trialStart + index] !== key)) return current;
+          currentPage.splice(trialStart, trial.blocks.length);
+          if (next[pageIndex + 1]) next[pageIndex + 1].unshift(...trial.blocks);
+          else next.splice(pageIndex + 1, 0, [...trial.blocks]);
           return next;
         });
         return;
@@ -176,7 +181,10 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
     // Every page fits. Pull the first block from a following page backward and
     // let the next measured frame accept or revert it. This closes gaps caused
     // by conditional headings, font hydration, and grid row reflow.
-    pullTrial.current = null;
+    if (pullTrial.current) {
+      pullCaps.current.delete(pullTrial.current.boundary);
+      pullTrial.current = null;
+    }
     const boundary = pages.findIndex((_, index) => (
       index < pages.length - 1
       && pages[index + 1].length > 0
@@ -184,13 +192,38 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
       && !scales[index]
     ));
     if (boundary >= 0) {
-      const block = pages[boundary + 1][0];
-      pullTrial.current = { boundary, block };
+      const currentContent = contentRefs.current.get(boundary);
+      const currentBody = currentContent?.parentElement;
+      const nextContent = contentRefs.current.get(boundary + 1);
+      const available = Math.max(
+        0,
+        (currentBody?.clientHeight ?? 0) - Math.max(currentContent?.scrollHeight ?? 0, currentContent?.offsetHeight ?? 0),
+      );
+      const nextTop = nextContent?.getBoundingClientRect().top ?? 0;
+      let candidateCount = 0;
+
+      // Marker bottoms preserve the real browser layout, including grid rows and
+      // continuation headings. This gives a safe multi-block estimate; a trial
+      // and rollback still provide exact protection against conditional reflow.
+      for (const key of pages[boundary + 1]) {
+        const markers = nextContent?.querySelectorAll<HTMLElement>(`[data-flow-key="${CSS.escape(key)}"]`);
+        if (!markers?.length) break;
+        const bottom = Math.max(...[...markers].map((marker) => marker.getBoundingClientRect().bottom - nextTop));
+        if (bottom > available + 1) break;
+        candidateCount += 1;
+      }
+      const cap = pullCaps.current.get(boundary);
+      candidateCount = Math.min(cap ?? Number.POSITIVE_INFINITY, Math.max(1, candidateCount));
+      const blocks = pages[boundary + 1].slice(0, candidateCount);
+      pullTrial.current = { boundary, blocks };
       setPages((current) => {
         const next = current.map((items) => [...items]);
-        if (!next[boundary] || next[boundary + 1]?.[0] !== block) return current;
-        next[boundary].push(block);
-        next[boundary + 1].shift();
+        if (
+          !next[boundary]
+          || blocks.some((key, index) => next[boundary + 1]?.[index] !== key)
+        ) return current;
+        next[boundary].push(...blocks);
+        next[boundary + 1].splice(0, blocks.length);
         if (next[boundary + 1].length === 0) next.splice(boundary + 1, 1);
         return next;
       });
