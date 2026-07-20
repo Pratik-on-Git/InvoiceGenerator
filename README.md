@@ -33,8 +33,9 @@ node ./node_modules/next/dist/bin/next start      # serve the build
   (choose *Save as PDF*, margins **None**, **Background graphics on**).
 - **Export JSON / Import** saves and reloads a document; edits also autosave to the
   browser (localStorage).
-- **Automatic A4 pagination** moves overflowing rows and cards onto numbered
-  continuation sheets. The dashboard and PDF page totals update from the measured layout.
+- **Automatic A4 pagination** continuously packs every enabled section into the available
+  page space, then moves only the overflowing rows or cards to a numbered continuation
+  sheet. The dashboard and PDF page totals update from the measured layout.
 
 ## Architecture
 
@@ -52,8 +53,8 @@ lib/
 components/
   Generator.tsx     State, autosave, import/export, print, context provider
   AppBar.tsx        Toolbar (toggles, logo, colour, file actions)
-  Doc.tsx           Builds the ordered page list + auto page numbering
-  AutoPaginatedSection.tsx  Measured A4 splitting and oversized-item safeguard
+  Doc.tsx           Builds one ordered cross-section document flow
+  AutoPaginatedDocument.tsx Global A4 packing and oversized-item safeguard
   PageFrame.tsx     Fixed A4 sheet, reserved content body, footer
   Editable.tsx      Cursor-safe inline contentEditable (text / rich / numeric)
   Controls.tsx      AddButton / RemoveButton

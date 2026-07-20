@@ -19,31 +19,91 @@ interface Props {
   renderPage: (blockIndexes: number[], pageIndex: number) => ReactNode;
 }
 
+function samePages(left: string[][], right: string[][]) {
+  return left.length === right.length
+    && left.every((page, pageIndex) => (
+      page.length === right[pageIndex]?.length
+      && page.every((key, keyIndex) => key === right[pageIndex][keyIndex])
+    ));
+}
+
+/**
+ * Keep the current page boundaries where possible while atomically reconciling
+ * additions, removals, and section toggles. Page state stores stable block keys
+ * instead of array indexes so inserting a block cannot temporarily reinterpret
+ * every following block or make the rest of the document disappear.
+ */
+function reconcilePages(current: string[][], orderedKeys: string[]) {
+  if (orderedKeys.length === 0) return [[]];
+
+  const order = new Map(orderedKeys.map((key, index) => [key, index]));
+  const retained = current
+    .map((page) => page.filter((key) => order.has(key)))
+    .filter((page) => page.length > 0);
+  if (retained.length === 0) return [[...orderedKeys]];
+
+  const next: string[][] = [];
+  let cursor = 0;
+  for (let pageIndex = 0; pageIndex < retained.length - 1; pageIndex += 1) {
+    const end = Math.max(...retained[pageIndex].map((key) => order.get(key) ?? -1));
+    if (end < cursor) continue;
+    next.push(orderedKeys.slice(cursor, end + 1));
+    cursor = end + 1;
+  }
+  if (cursor < orderedKeys.length) next.push(orderedKeys.slice(cursor));
+  return next.length > 0 ? next : [[...orderedKeys]];
+}
+
 /**
  * Packs one continuous stream of document blocks into physical A4 sheets.
  * Blocks from different sections may share a sheet; a trailing block moves to
  * the next sheet only when the browser confirms that the complete page overflows.
  */
 export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPageCountChange, renderPage }: Props) {
-  const allBlocks = useMemo(() => Array.from({ length: blockCount }, (_, index) => index), [blockCount]);
-  const [pages, setPages] = useState<number[][]>(() => [allBlocks]);
+  const blockSignature = blockKeys.join("\u001f");
+  const keyToIndex = useMemo(
+    () => new Map(blockKeys.map((key, index) => [key, index])),
+    // blockSignature represents the ordered keys without retaining an unstable
+    // array identity from Doc's render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blockSignature],
+  );
+  const [pages, setPages] = useState<string[][]>(() => [[...blockKeys]]);
   const [scales, setScales] = useState<Record<number, number>>({});
   const contentRefs = useRef(new Map<number, HTMLDivElement>());
   const blockedPulls = useRef(new Set<number>());
-  const pullTrial = useRef<{ boundary: number; block: number } | null>(null);
+  const pullTrial = useRef<{ boundary: number; block: string } | null>(null);
 
-  // Repack from the beginning whenever document content changes. Deferring the
-  // update avoids a synchronous effect cascade and keeps active editors stable.
+  // Reconcile structure on the next task. Stable keys keep all existing blocks
+  // correctly rendered in the meantime, including controls in later sections.
+  useEffect(() => {
+    const orderedKeys = [...blockKeys];
+    const id = window.setTimeout(() => {
+      blockedPulls.current.clear();
+      pullTrial.current = null;
+      setScales({});
+      setPages((current) => {
+        const next = reconcilePages(current, orderedKeys);
+        return samePages(current, next) ? current : next;
+      });
+    }, 0);
+    return () => window.clearTimeout(id);
+    // blockSignature tracks both membership and document order.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockSignature]);
+
+  // Text edits can change measured height without changing the block stream.
+  // Preserve the partition, clear failed-fit memoization, and let the observer
+  // incrementally move or backfill the affected blocks after the edit settles.
   useEffect(() => {
     const id = window.setTimeout(() => {
       if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) return;
       blockedPulls.current.clear();
       pullTrial.current = null;
-      setPages([allBlocks]);
       setScales({});
-    }, 120);
+    }, 80);
     return () => window.clearTimeout(id);
-  }, [allBlocks, layoutKey]);
+  }, [layoutKey]);
 
   useEffect(() => {
     const id = window.setTimeout(() => onPageCountChange(pages.length), 0);
@@ -84,9 +144,7 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
       const pageBlocks = pages[pageIndex];
       if (pageBlocks.length > 1) {
         const bodyBottom = body.getBoundingClientRect().bottom;
-        let splitAt = pageBlocks.findIndex((blockIndex) => {
-          const key = blockKeys[blockIndex];
-          if (!key) return false;
+        let splitAt = pageBlocks.findIndex((key) => {
           const markers = content.querySelectorAll<HTMLElement>(`[data-flow-key="${CSS.escape(key)}"]`);
           return [...markers].some((marker) => marker.getBoundingClientRect().bottom > bodyBottom + 1);
         });
@@ -142,7 +200,7 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
         return next;
       });
     }
-  }, [blockKeys, pages, scales]);
+  }, [pages, scales]);
 
   useEffect(() => {
     let frame = 0;
@@ -168,7 +226,7 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
 
   return (
     <>
-      {pages.map((blockIndexes, pageIndex) => (
+      {pages.map((pageKeys, pageIndex) => (
         <PageFrame
           key={pageIndex}
           pageNo={pageIndex + 1}
@@ -179,7 +237,12 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
             else contentRefs.current.delete(pageIndex);
           }}
         >
-          {renderPage(blockIndexes, pageIndex)}
+          {renderPage(
+            pageKeys
+              .map((key) => keyToIndex.get(key))
+              .filter((index): index is number => index !== undefined && index < blockCount),
+            pageIndex,
+          )}
         </PageFrame>
       ))}
     </>
