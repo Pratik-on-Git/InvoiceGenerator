@@ -20,7 +20,6 @@ import {
 
 import { useInvoice, useUI } from "@/lib/state";
 import type { SectionKey } from "@/lib/types";
-import { pageCount } from "@/lib/summary";
 import { cn } from "@/lib/utils";
 
 import {
@@ -39,7 +38,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -62,11 +60,9 @@ const ACCENT_PRESETS = ["#005ef9", "#7c3aed", "#0ea5e9", "#059669", "#e11d48", "
 
 export function AppSidebar() {
   const { inv, set } = useInvoice();
-  const { saveState, onExport, onImport, onReset, onLogo } = useUI();
+  const { saveState, pageTotal: pages, onExport, onImport, onReset, onLogo } = useUI();
   const importRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
-
-  const pages = pageCount(inv);
 
   return (
     <Sidebar collapsible="offcanvas" className="no-print">

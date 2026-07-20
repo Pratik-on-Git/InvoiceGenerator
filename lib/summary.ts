@@ -2,7 +2,7 @@ import type { Invoice, SectionKey } from "./types";
 
 export const SECTION_KEYS: SectionKey[] = ["scope", "features", "terms", "requirements", "payment"];
 
-/** Total number of A4 pages the document renders — mirrors <Doc />'s logic. */
+/** Initial logical page estimate used before browser-measured pagination settles. */
 export function pageCount(inv: Invoice): number {
   let n = 1; // cover is always present
   if (inv.scope.enabled) n += 1;

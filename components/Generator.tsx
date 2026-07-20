@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { InvoiceCtx, UICtx, type Updater, type SaveState } from "@/lib/state";
 import type { Invoice } from "@/lib/types";
 import { defaultInvoice } from "@/lib/defaultInvoice";
+import { pageCount } from "@/lib/summary";
 import { cn } from "@/lib/utils";
 
 import { SidebarInset } from "@/components/ui/sidebar";
@@ -38,6 +39,7 @@ export function Generator() {
   const [editing, setEditing] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [pageTotal, setPageTotal] = useState(() => pageCount(defaultInvoice));
   const hydrated = useRef(false);
 
   // Load once on mount.
@@ -83,7 +85,9 @@ export function Generator() {
       window.removeEventListener("afterprint", restore);
     };
     window.addEventListener("afterprint", restore);
-    window.print();
+    // Let a just-blurred editor commit and let measured pagination settle before
+    // the browser snapshots the DOM for printing.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
   }, [inv.brand.name, inv.meta.docNo]);
 
   const onExport = useCallback(() => {
@@ -139,7 +143,7 @@ export function Generator() {
   return (
     <InvoiceCtx.Provider value={{ inv, set, editing }}>
       <UICtx.Provider
-        value={{ editing, setEditing, saveState, zoom, setZoom, onDownload, onExport, onImport, onReset, onLogo }}
+        value={{ editing, setEditing, saveState, pageTotal, zoom, setZoom, onDownload, onExport, onImport, onReset, onLogo }}
       >
         <div className="flex min-h-svh w-full min-w-0 flex-1">
           <AppSidebar />
@@ -150,7 +154,7 @@ export function Generator() {
               <DocToolbar />
               <div className={cn("stage min-w-0 flex-1 rounded-xl border", editing && "editing")}>
                 <div className="doc-scaler mx-auto w-fit" style={{ zoom } as CSSProperties}>
-                  <Doc />
+                  <Doc onPageCountChange={setPageTotal} />
                 </div>
               </div>
             </div>

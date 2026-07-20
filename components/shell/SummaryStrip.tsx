@@ -2,13 +2,14 @@
 
 import { LayersIcon, PackageIcon, PercentIcon, WalletIcon, type LucideIcon } from "lucide-react";
 
-import { useInvoice } from "@/lib/state";
+import { useInvoice, useUI } from "@/lib/state";
 import { money } from "@/lib/format";
-import { pageCount, investTotal, enabledSections } from "@/lib/summary";
+import { investTotal, enabledSections } from "@/lib/summary";
 import { Card } from "@/components/ui/card";
 
 export function SummaryStrip() {
   const { inv } = useInvoice();
+  const { pageTotal } = useUI();
 
   const stats: { label: string; value: string; sub: string; icon: LucideIcon }[] = [
     {
@@ -25,7 +26,7 @@ export function SummaryStrip() {
     },
     {
       label: "Document pages",
-      value: String(pageCount(inv)),
+      value: String(pageTotal),
       sub: `${enabledSections(inv)} of 5 sections on`,
       icon: LayersIcon,
     },

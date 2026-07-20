@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+
 import { useInvoice } from "@/lib/state";
 import { Cover } from "./sections/Cover";
 import { Scope } from "./sections/Scope";
@@ -9,41 +10,56 @@ import { Terms } from "./sections/Terms";
 import { Requirements } from "./sections/Requirements";
 import { Payment } from "./sections/Payment";
 
-type Def = { type: "cover" | "scope" | "terms" | "req" | "pay" } | { type: "feat"; gi: number };
+type Def =
+  | { id: string; type: "cover" | "scope" | "terms" | "req" | "pay" }
+  | { id: string; type: "feat"; gi: number };
 
-export function Doc() {
+export function Doc({ onPageCountChange }: { onPageCountChange: (count: number) => void }) {
   const { inv } = useInvoice();
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
-  const defs: Def[] = [{ type: "cover" }];
-  if (inv.scope.enabled) defs.push({ type: "scope" });
+  const defs: Def[] = [{ id: "cover", type: "cover" }];
+  if (inv.scope.enabled) defs.push({ id: "scope", type: "scope" });
   if (inv.features.enabled) {
-    if (inv.features.groups.length === 0) defs.push({ type: "feat", gi: -1 });
-    else inv.features.groups.forEach((_, gi) => defs.push({ type: "feat", gi }));
+    if (inv.features.groups.length === 0) defs.push({ id: "feat-empty", type: "feat", gi: -1 });
+    else inv.features.groups.forEach((_, gi) => defs.push({ id: `feat-${gi}`, type: "feat", gi }));
   }
-  if (inv.terms.enabled) defs.push({ type: "terms" });
-  if (inv.requirements.enabled) defs.push({ type: "req" });
-  if (inv.payment.enabled) defs.push({ type: "pay" });
+  if (inv.terms.enabled) defs.push({ id: "terms", type: "terms" });
+  if (inv.requirements.enabled) defs.push({ id: "req", type: "req" });
+  if (inv.payment.enabled) defs.push({ id: "pay", type: "pay" });
 
-  const total = defs.length;
+  const total = defs.reduce((sum, def) => sum + (counts[def.id] ?? 1), 0);
   const accentStyle = { "--blue": inv.meta.accent } as CSSProperties;
 
+  useEffect(() => {
+    const id = window.setTimeout(() => onPageCountChange(total), 0);
+    return () => window.clearTimeout(id);
+  }, [onPageCountChange, total]);
+
+  let nextPage = 1;
   return (
     <div className="doc" style={accentStyle}>
-      {defs.map((d, i) => {
-        const pageNo = i + 1;
-        switch (d.type) {
+      {defs.map((def) => {
+        const startPage = nextPage;
+        nextPage += counts[def.id] ?? 1;
+        const report = (count: number) => {
+          setCounts((current) => current[def.id] === count ? current : { ...current, [def.id]: count });
+        };
+        const props = { startPage, total, onPageCountChange: report };
+
+        switch (def.type) {
           case "cover":
-            return <Cover key="cover" pageNo={pageNo} total={total} />;
+            return <Cover key={def.id} {...props} />;
           case "scope":
-            return <Scope key="scope" pageNo={pageNo} total={total} />;
+            return <Scope key={def.id} {...props} />;
           case "feat":
-            return <Features key={`feat-${d.gi}`} gi={d.gi} pageNo={pageNo} total={total} />;
+            return <Features key={def.id} gi={def.gi} {...props} />;
           case "terms":
-            return <Terms key="terms" pageNo={pageNo} total={total} />;
+            return <Terms key={def.id} {...props} />;
           case "req":
-            return <Requirements key="req" pageNo={pageNo} total={total} />;
+            return <Requirements key={def.id} {...props} />;
           case "pay":
-            return <Payment key="pay" pageNo={pageNo} total={total} />;
+            return <Payment key={def.id} {...props} />;
         }
       })}
     </div>

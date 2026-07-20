@@ -33,8 +33,8 @@ node ./node_modules/next/dist/bin/next start      # serve the build
   (choose *Save as PDF*, margins **None**, **Background graphics on**).
 - **Export JSON / Import** saves and reloads a document; edits also autosave to the
   browser (localStorage).
-- **⚠ Overflows A4** badge appears on any page whose content would be clipped in the
-  PDF — split it (e.g. move features to a new group) or disable a section.
+- **Automatic A4 pagination** moves overflowing rows and cards onto numbered
+  continuation sheets. The dashboard and PDF page totals update from the measured layout.
 
 ## Architecture
 
@@ -46,14 +46,15 @@ app/
 lib/
   types.ts          Invoice data model (mirrors the printed layout 1:1)
   defaultInvoice.ts Default document (the Kanthiveda Herbals quotation)
-  state.tsx         React context: { inv, set, editing }
+  state.tsx         React context: document state, UI state, measured page total
   format.ts         Indian-style money grouping
   list.ts           move() / removeAt() array helpers
 components/
   Generator.tsx     State, autosave, import/export, print, context provider
   AppBar.tsx        Toolbar (toggles, logo, colour, file actions)
   Doc.tsx           Builds the ordered page list + auto page numbering
-  PageFrame.tsx     A4 sheet, footer, live overflow detection
+  AutoPaginatedSection.tsx  Measured A4 splitting and oversized-item safeguard
+  PageFrame.tsx     Fixed A4 sheet, reserved content body, footer
   Editable.tsx      Cursor-safe inline contentEditable (text / rich / numeric)
   Controls.tsx      AddButton / RemoveButton
   ItemControls.tsx  Reorder (↑↓) + remove cluster

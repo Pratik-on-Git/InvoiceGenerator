@@ -11,8 +11,7 @@ import {
   ZoomOutIcon,
 } from "lucide-react";
 
-import { useInvoice, useUI, type SaveState } from "@/lib/state";
-import { pageCount } from "@/lib/summary";
+import { useUI, type SaveState } from "@/lib/state";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +22,7 @@ const ZOOM_MAX = 1.5;
 const clamp = (n: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(n * 100) / 100));
 
 export function DocToolbar() {
-  const { inv } = useInvoice();
-  const { editing, setEditing, saveState, zoom, setZoom } = useUI();
-  const pages = pageCount(inv);
+  const { editing, setEditing, saveState, pageTotal: pages, zoom, setZoom } = useUI();
 
   return (
     <div className="no-print bg-card flex flex-wrap items-center gap-2 rounded-xl border p-2 shadow-xs">

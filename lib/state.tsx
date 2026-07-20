@@ -28,6 +28,7 @@ export interface UI {
   editing: boolean;
   setEditing: (v: boolean) => void;
   saveState: SaveState;
+  pageTotal: number;
   zoom: number;
   setZoom: (v: number | ((z: number) => number)) => void;
   onDownload: () => void;

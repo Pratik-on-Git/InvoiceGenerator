@@ -202,12 +202,39 @@ html {
 .page {
   position: relative;
   width: 210mm;
+  height: 297mm;
   min-height: 297mm;
   background: var(--bg);
   margin: 10mm auto;
-  padding: 17mm 18mm 15mm;
+  padding: 17mm 18mm 0;
   box-shadow: 0 6px 30px rgba(10, 15, 30, 0.28);
   overflow: hidden;
+}
+
+/* The footer starts at roughly 281mm. Keeping the flow body to 256mm
+   guarantees a clear gap above it while preserving the original 17mm top. */
+.page-body {
+  height: 256mm;
+  overflow: hidden;
+}
+.page-body-inner {
+  width: 100%;
+  min-width: 0;
+  transform-origin: top left;
+}
+.page-body-inner,
+.page-body-inner * {
+  overflow-wrap: anywhere;
+}
+.page-body-inner > *,
+.deliv,
+.feat,
+.mile-card,
+.req,
+.pay-card,
+.sign,
+.kv > * {
+  min-width: 0;
 }
 
 /* ---------- Footer ---------- */
@@ -615,12 +642,14 @@ html {
   text-transform: uppercase;
   padding: 2mm 3.5mm;
   border-radius: 2mm;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .group-head .g-title {
   font-size: 14pt;
   font-weight: 700;
   letter-spacing: -0.04em;
+  min-width: 0;
 }
 .group-head .g-line {
   flex: 1;
@@ -754,7 +783,7 @@ html {
 
 .stat-band {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0;
   margin-top: 7mm;
   background: var(--dark);
@@ -965,6 +994,26 @@ html {
   margin-top: 2mm;
 }
 
+/* Reusable spacing for content groups that may begin on a continuation page. */
+.content-group-head {
+  margin-top: 9mm;
+}
+.feature-group-head {
+  margin-top: 7mm;
+}
+.empty-section {
+  margin-top: 10mm;
+}
+.empty-section .lead {
+  margin-bottom: 5mm;
+}
+.requirements-note {
+  margin-top: 8mm;
+}
+.sign-lead {
+  margin-top: -2mm;
+}
+
 /* ============================================================
    DOCUMENT STAGE  (screen only)
    ============================================================ */
@@ -1100,28 +1149,6 @@ html {
   background: #e5484d;
 }
 
-/* Overflow warning badge (screen only) */
-.overflow-badge {
-  position: absolute;
-  top: 6mm;
-  right: 6mm;
-  z-index: 8;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff4e5;
-  color: #9a5b00;
-  border: 1px solid #f2c17d;
-  border-radius: 7px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  box-shadow: 0 4px 14px rgba(154, 91, 0, 0.18);
-  max-width: 62mm;
-  line-height: 1.3;
-}
-
 /* Hide editor-only UI when not in edit mode */
 .stage:not(.editing) .ctrl-remove,
 .stage:not(.editing) .ctrl-add,
@@ -1138,7 +1165,6 @@ html {
   .ctrl-remove,
   .ctrl-add,
   .item-ctrls,
-  .overflow-badge,
   .add-slot {
     display: none !important;
   }
