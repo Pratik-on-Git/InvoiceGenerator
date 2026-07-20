@@ -69,28 +69,25 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
     [blockSignature],
   );
   const [pages, setPages] = useState<string[][]>(() => [[...blockKeys]]);
+  const [renderedBlockSignature, setRenderedBlockSignature] = useState(blockSignature);
   const [scales, setScales] = useState<Record<number, number>>({});
   const contentRefs = useRef(new Map<number, HTMLDivElement>());
   const blockedPulls = useRef(new Set<number>());
   const pullTrial = useRef<{ boundary: number; block: string } | null>(null);
 
-  // Reconcile structure on the next task. Stable keys keep all existing blocks
-  // correctly rendered in the meantime, including controls in later sections.
-  useEffect(() => {
-    const orderedKeys = [...blockKeys];
-    const id = window.setTimeout(() => {
-      blockedPulls.current.clear();
-      pullTrial.current = null;
-      setScales({});
-      setPages((current) => {
-        const next = reconcilePages(current, orderedKeys);
-        return samePages(current, next) ? current : next;
-      });
-    }, 0);
-    return () => window.clearTimeout(id);
-    // blockSignature tracks both membership and document order.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blockSignature]);
+  // React immediately retries this render with the reconciled partition. That
+  // prevents even a one-frame gap where a newly inserted tail block (and its
+  // add control) is absent while a user is making rapid consecutive edits.
+  if (renderedBlockSignature !== blockSignature) {
+    blockedPulls.current.clear();
+    pullTrial.current = null;
+    setRenderedBlockSignature(blockSignature);
+    setScales({});
+    setPages((current) => {
+      const next = reconcilePages(current, blockKeys);
+      return samePages(current, next) ? current : next;
+    });
+  }
 
   // Text edits can change measured height without changing the block stream.
   // Preserve the partition, clear failed-fit memoization, and let the observer
