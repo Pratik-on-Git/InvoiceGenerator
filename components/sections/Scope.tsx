@@ -13,22 +13,25 @@ type DeliverableBlock = Extract<FlowBlock, { kind: "deliverable" }>;
 export function ScopeSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const scope = inv.scope;
+  const introBlock = blocks.find((block) => block.kind === "scope-intro");
   const deliverables = blocks.filter((block): block is DeliverableBlock => block.kind === "deliverable");
   const noteBlock = blocks.find((block) => block.kind === "scope-note");
 
   return (
     <section className="flow-section">
-      <Editable as="div" className="sec-num" value={scope.num} onCommit={(v) => set((d) => (d.scope.num = v))} />
-      {!continued ? (
-        <Editable as="div" className="sec-title" value={scope.title} onCommit={(v) => set((d) => (d.scope.title = v))} />
-      ) : (
-        <div className="sec-title">
-          <Editable as="span" value={scope.title} onCommit={(v) => set((d) => (d.scope.title = v))} />{" "}
-          <span className="muted">— continued</span>
-        </div>
-      )}
-      <div className="sec-rule" />
-      {!continued && <Editable as="p" rich className="lead" value={scope.lead} onCommit={(v) => set((d) => (d.scope.lead = v))} />}
+      <div className={introBlock ? "flow-atomic" : undefined} data-flow-key={introBlock ? flowBlockKey(introBlock) : undefined}>
+        <Editable as="div" className="sec-num" value={scope.num} onCommit={(v) => set((d) => (d.scope.num = v))} />
+        {!continued ? (
+          <Editable as="div" className="sec-title" value={scope.title} onCommit={(v) => set((d) => (d.scope.title = v))} />
+        ) : (
+          <div className="sec-title">
+            <Editable as="span" value={scope.title} onCommit={(v) => set((d) => (d.scope.title = v))} />{" "}
+            <span className="muted">— continued</span>
+          </div>
+        )}
+        <div className="sec-rule" />
+        {introBlock && <Editable as="p" rich className="lead" value={scope.lead} onCommit={(v) => set((d) => (d.scope.lead = v))} />}
+      </div>
 
       {deliverables.length > 0 && (
         <div className="deliv-grid">

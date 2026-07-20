@@ -241,7 +241,7 @@ html {
    part of measured flow, so a heading is moved with its first block rather than
    being orphaned at the bottom of a sheet. */
 .flow-section + .flow-section {
-  margin-top: 10mm;
+  margin-top: 7mm;
 }
 
 /* ---------- Footer ---------- */

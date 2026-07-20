@@ -14,6 +14,7 @@ type SignatureBlock = Extract<FlowBlock, { kind: "signature" }>;
 export function PaymentSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const payment = inv.payment;
+  const introBlock = blocks.find((block) => block.kind === "payment-intro");
   const rowBlocks = blocks.filter((block): block is PaymentRowBlock => block.kind === "payment-row");
   const signatureBlocks = blocks.filter((block): block is SignatureBlock => block.kind === "signature");
   const signaturesEmptyBlock = blocks.find((block) => block.kind === "signatures-empty");
@@ -25,16 +26,18 @@ export function PaymentSlice({ blocks, continued }: SectionSliceProps) {
 
   return (
     <section className="flow-section">
-      <Editable as="div" className="sec-num" value={payment.num} onCommit={(v) => set((d) => (d.payment.num = v))} />
-      {!continued ? (
-        <Editable as="div" className="sec-title" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />
-      ) : (
-        <div className="sec-title">
-          <Editable as="span" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />{" "}
-          <span className="muted">— continued</span>
-        </div>
-      )}
-      <div className="sec-rule" />
+      <div className={introBlock ? "flow-atomic" : undefined} data-flow-key={introBlock ? flowBlockKey(introBlock) : undefined}>
+        <Editable as="div" className="sec-num" value={payment.num} onCommit={(v) => set((d) => (d.payment.num = v))} />
+        {!continued ? (
+          <Editable as="div" className="sec-title" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />
+        ) : (
+          <div className="sec-title">
+            <Editable as="span" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />{" "}
+            <span className="muted">— continued</span>
+          </div>
+        )}
+        <div className="sec-rule" />
+      </div>
 
       {rowBlocks.length > 0 && (
         <div className="pay-grid" data-flow-key={emptyPaymentBlock ? flowBlockKey(emptyPaymentBlock) : undefined}>

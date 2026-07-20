@@ -14,6 +14,7 @@ type MilestoneBlock = Extract<FlowBlock, { kind: "milestone" }>;
 export function TermsSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const terms = inv.terms;
+  const introBlock = blocks.find((block) => block.kind === "terms-intro");
   const termBlocks = blocks.filter((block): block is TermBlock => block.kind === "term");
   const termsEmptyBlock = blocks.find((block) => block.kind === "terms-empty");
   const milestoneBlocks = blocks.filter((block): block is MilestoneBlock => block.kind === "milestone");
@@ -24,16 +25,18 @@ export function TermsSlice({ blocks, continued }: SectionSliceProps) {
 
   return (
     <section className="flow-section">
-      <Editable as="div" className="sec-num" value={terms.num} onCommit={(v) => set((d) => (d.terms.num = v))} />
-      {!continued ? (
-        <Editable as="div" className="sec-title" value={terms.title} onCommit={(v) => set((d) => (d.terms.title = v))} />
-      ) : (
-        <div className="sec-title">
-          <Editable as="span" value={terms.title} onCommit={(v) => set((d) => (d.terms.title = v))} />{" "}
-          <span className="muted">— continued</span>
-        </div>
-      )}
-      <div className="sec-rule" />
+      <div className={introBlock ? "flow-atomic" : undefined} data-flow-key={introBlock ? flowBlockKey(introBlock) : undefined}>
+        <Editable as="div" className="sec-num" value={terms.num} onCommit={(v) => set((d) => (d.terms.num = v))} />
+        {!continued ? (
+          <Editable as="div" className="sec-title" value={terms.title} onCommit={(v) => set((d) => (d.terms.title = v))} />
+        ) : (
+          <div className="sec-title">
+            <Editable as="span" value={terms.title} onCommit={(v) => set((d) => (d.terms.title = v))} />{" "}
+            <span className="muted">— continued</span>
+          </div>
+        )}
+        <div className="sec-rule" />
+      </div>
 
       {(termBlocks.length > 0 || termsEmptyBlock) && (
         <div

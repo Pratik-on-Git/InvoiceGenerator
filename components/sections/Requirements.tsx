@@ -13,22 +13,25 @@ type RequirementBlock = Extract<FlowBlock, { kind: "requirement" }>;
 export function RequirementsSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const requirements = inv.requirements;
+  const introBlock = blocks.find((block) => block.kind === "requirements-intro");
   const itemBlocks = blocks.filter((block): block is RequirementBlock => block.kind === "requirement");
   const noteBlock = blocks.find((block) => block.kind === "requirements-note");
 
   return (
     <section className="flow-section">
-      <Editable as="div" className="sec-num" value={requirements.num} onCommit={(v) => set((d) => (d.requirements.num = v))} />
-      {!continued ? (
-        <Editable as="div" className="sec-title" value={requirements.title} onCommit={(v) => set((d) => (d.requirements.title = v))} />
-      ) : (
-        <div className="sec-title">
-          <Editable as="span" value={requirements.title} onCommit={(v) => set((d) => (d.requirements.title = v))} />{" "}
-          <span className="muted">— continued</span>
-        </div>
-      )}
-      <div className="sec-rule" />
-      {!continued && <Editable as="p" rich className="lead" value={requirements.lead} onCommit={(v) => set((d) => (d.requirements.lead = v))} />}
+      <div className={introBlock ? "flow-atomic" : undefined} data-flow-key={introBlock ? flowBlockKey(introBlock) : undefined}>
+        <Editable as="div" className="sec-num" value={requirements.num} onCommit={(v) => set((d) => (d.requirements.num = v))} />
+        {!continued ? (
+          <Editable as="div" className="sec-title" value={requirements.title} onCommit={(v) => set((d) => (d.requirements.title = v))} />
+        ) : (
+          <div className="sec-title">
+            <Editable as="span" value={requirements.title} onCommit={(v) => set((d) => (d.requirements.title = v))} />{" "}
+            <span className="muted">— continued</span>
+          </div>
+        )}
+        <div className="sec-rule" />
+        {introBlock && <Editable as="p" rich className="lead" value={requirements.lead} onCommit={(v) => set((d) => (d.requirements.lead = v))} />}
+      </div>
 
       {itemBlocks.length > 0 && (
         <div className="req-grid">

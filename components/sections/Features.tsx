@@ -21,23 +21,26 @@ const newGroup = (): FeatureGroup => ({
 export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const features = inv.features;
+  const introBlock = blocks.find((block) => block.kind === "features-intro");
   const completelyEmptyBlock = blocks.find((block) => block.kind === "features-empty");
   const featureBlocks = blocks.filter((block): block is FeatureBlock => block.kind === "feature" || block.kind === "feature-empty");
   const groupIndexes = [...new Set(featureBlocks.map((block) => block.groupIndex))];
 
   return (
     <section className="flow-section">
-      <Editable as="div" className="sec-num" value={features.num} onCommit={(v) => set((d) => (d.features.num = v))} />
-      {!continued ? (
-        <Editable as="div" className="sec-title" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />
-      ) : (
-        <div className="sec-title">
-          <Editable as="span" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />{" "}
-          <span className="muted">— continued</span>
-        </div>
-      )}
-      <div className="sec-rule" />
-      {!continued && <Editable as="p" rich className="lead" value={features.lead} onCommit={(v) => set((d) => (d.features.lead = v))} />}
+      <div className={introBlock ? "flow-atomic" : undefined} data-flow-key={introBlock ? flowBlockKey(introBlock) : undefined}>
+        <Editable as="div" className="sec-num" value={features.num} onCommit={(v) => set((d) => (d.features.num = v))} />
+        {!continued ? (
+          <Editable as="div" className="sec-title" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />
+        ) : (
+          <div className="sec-title">
+            <Editable as="span" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />{" "}
+            <span className="muted">— continued</span>
+          </div>
+        )}
+        <div className="sec-rule" />
+        {introBlock && <Editable as="p" rich className="lead" value={features.lead} onCommit={(v) => set((d) => (d.features.lead = v))} />}
+      </div>
 
       {completelyEmptyBlock ? (
         <div className="empty-section flow-atomic" data-flow-key={flowBlockKey(completelyEmptyBlock)}>
