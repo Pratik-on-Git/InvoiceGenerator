@@ -2,7 +2,7 @@
 
 import { useInvoice } from "@/lib/state";
 import { move } from "@/lib/list";
-import type { FlowBlock } from "@/lib/pagination";
+import { flowBlockKey, type FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
@@ -14,7 +14,7 @@ export function RequirementsSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const requirements = inv.requirements;
   const itemBlocks = blocks.filter((block): block is RequirementBlock => block.kind === "requirement");
-  const showNote = blocks.some((block) => block.kind === "requirements-note");
+  const noteBlock = blocks.find((block) => block.kind === "requirements-note");
 
   return (
     <section className="flow-section">
@@ -32,11 +32,12 @@ export function RequirementsSlice({ blocks, continued }: SectionSliceProps) {
 
       {itemBlocks.length > 0 && (
         <div className="req-grid">
-          {itemBlocks.map(({ index }) => {
+          {itemBlocks.map((block) => {
+            const { index } = block;
             const item = requirements.items[index];
             if (!item) return null;
             return (
-              <div className="req rowwrap" key={index}>
+              <div className="req rowwrap" data-flow-key={flowBlockKey(block)} key={index}>
                 <ItemControls
                   index={index}
                   count={requirements.items.length}
@@ -54,11 +55,11 @@ export function RequirementsSlice({ blocks, continued }: SectionSliceProps) {
         </div>
       )}
 
-      {showNote && (
-        <>
+      {noteBlock && (
+        <div className="flow-atomic" data-flow-key={flowBlockKey(noteBlock)}>
           <AddButton label="requirement" onAdd={() => set((d) => d.requirements.items.push({ letter: "•", title: "New requirement", html: "Details." }))} />
           <Editable as="div" rich className="note-strip requirements-note" value={requirements.note} onCommit={(v) => set((d) => (d.requirements.note = v))} />
-        </>
+        </div>
       )}
     </section>
   );

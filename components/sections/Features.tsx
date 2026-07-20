@@ -3,7 +3,7 @@
 import { useInvoice } from "@/lib/state";
 import { move } from "@/lib/list";
 import type { FeatureGroup } from "@/lib/types";
-import type { FlowBlock } from "@/lib/pagination";
+import { flowBlockKey, type FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
@@ -21,7 +21,7 @@ const newGroup = (): FeatureGroup => ({
 export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const features = inv.features;
-  const isCompletelyEmpty = blocks.some((block) => block.kind === "features-empty");
+  const completelyEmptyBlock = blocks.find((block) => block.kind === "features-empty");
   const featureBlocks = blocks.filter((block): block is FeatureBlock => block.kind === "feature" || block.kind === "feature-empty");
   const groupIndexes = [...new Set(featureBlocks.map((block) => block.groupIndex))];
 
@@ -39,8 +39,8 @@ export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceP
       <div className="sec-rule" />
       {!continued && <Editable as="p" rich className="lead" value={features.lead} onCommit={(v) => set((d) => (d.features.lead = v))} />}
 
-      {isCompletelyEmpty ? (
-        <div className="empty-section">
+      {completelyEmptyBlock ? (
+        <div className="empty-section flow-atomic" data-flow-key={flowBlockKey(completelyEmptyBlock)}>
           <p className="lead">No feature groups yet.</p>
           <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />
         </div>
@@ -50,13 +50,17 @@ export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceP
           if (!group) return null;
           const selected = featureBlocks.filter((block) => block.groupIndex === groupIndex);
           const items = selected.filter((block): block is Extract<FlowBlock, { kind: "feature" }> => block.kind === "feature");
-          const empty = selected.some((block) => block.kind === "feature-empty");
-          const groupStart = empty || items.some((block) => block.index === 0);
-          const groupEnd = empty || items.some((block) => block.index === group.items.length - 1);
+          const emptyBlock = selected.find((block) => block.kind === "feature-empty");
+          const groupStart = Boolean(emptyBlock) || items.some((block) => block.index === 0);
+          const groupEnd = Boolean(emptyBlock) || items.some((block) => block.index === group.items.length - 1);
           const offset = features.groups.slice(0, groupIndex).reduce((sum, item) => sum + item.items.length, 0);
 
           return (
-            <div className="feature-group-block" key={groupIndex}>
+            <div
+              className="feature-group-block"
+              data-flow-key={emptyBlock ? flowBlockKey(emptyBlock) : undefined}
+              key={groupIndex}
+            >
               <div className="group-head rowwrap feature-group-head">
                 <Editable as="span" className="g-tag" value={group.tag} onCommit={(v) => set((d) => (d.features.groups[groupIndex].tag = v))} />
                 <Editable as="span" className="g-title" value={group.title} onCommit={(v) => set((d) => (d.features.groups[groupIndex].title = v))} />
@@ -74,11 +78,12 @@ export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceP
 
               {items.length > 0 && (
                 <div className="feat-grid">
-                  {items.map(({ index }) => {
+                  {items.map((block) => {
+                    const { index } = block;
                     const item = group.items[index];
                     if (!item) return null;
                     return (
-                      <div className="feat rowwrap" key={index}>
+                      <div className="feat rowwrap" data-flow-key={flowBlockKey(block)} key={index}>
                         <div className="f-n">{offset + index + 1}</div>
                         <div className="f-body">
                           <Editable as="div" className="f-t" value={item.title} onCommit={(v) => set((d) => (d.features.groups[groupIndex].items[index].title = v))} />

@@ -3,7 +3,7 @@
 import { useInvoice } from "@/lib/state";
 import { groupIN, money, digits } from "@/lib/format";
 import { move } from "@/lib/list";
-import type { FlowBlock } from "@/lib/pagination";
+import { flowBlockKey, type FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton, RemoveButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
@@ -14,14 +14,15 @@ type ItemBlock = Extract<FlowBlock, { kind: "investment-item" }>;
 export function CoverSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const sum = inv.invest.items.reduce((total, item) => total + item.amount, 0);
-  const hasIntro = blocks.some((block) => block.kind === "cover-intro");
+  const introBlock = blocks.find((block) => block.kind === "cover-intro");
   const itemBlocks = blocks.filter((block): block is ItemBlock => block.kind === "investment-item");
-  const showTotal = blocks.some((block) => block.kind === "investment-total");
+  const totalBlock = blocks.find((block) => block.kind === "investment-total");
+  const showTotal = Boolean(totalBlock);
 
   return (
     <section className="flow-section flow-cover">
-      {hasIntro ? (
-        <>
+      {introBlock ? (
+        <div className="flow-atomic" data-flow-key={flowBlockKey(introBlock)}>
           <div className="cover-top">
             <div className="brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -72,7 +73,7 @@ export function CoverSlice({ blocks, continued }: SectionSliceProps) {
               );
             })}
           </div>
-        </>
+        </div>
       ) : (
         <>
           <Editable as="div" className="sec-num" value={inv.cover.eyebrow} onCommit={(v) => set((d) => (d.cover.eyebrow = v))} />
@@ -93,11 +94,12 @@ export function CoverSlice({ blocks, continued }: SectionSliceProps) {
           <div className="inv-col-head">
             <span>Item</span><span>Pages</span><span>Unit</span><span>Total</span>
           </div>
-          {itemBlocks.map(({ index }) => {
+          {itemBlocks.map((block) => {
+            const { index } = block;
             const item = inv.invest.items[index];
             if (!item) return null;
             return (
-              <div className="inv-row rowwrap" key={index}>
+              <div className="inv-row rowwrap" data-flow-key={flowBlockKey(block)} key={index}>
                 <div className="c-item">
                   <Editable as="span" value={item.name} onCommit={(v) => set((d) => (d.invest.items[index].name = v))} />
                   <Editable as="small" value={item.desc} onCommit={(v) => set((d) => (d.invest.items[index].desc = v))} />
@@ -116,8 +118,8 @@ export function CoverSlice({ blocks, continued }: SectionSliceProps) {
               </div>
             );
           })}
-          {showTotal && (
-            <>
+          {totalBlock && (
+            <div className="flow-atomic" data-flow-key={flowBlockKey(totalBlock)}>
               <AddButton
                 label="line item"
                 onAdd={() => set((d) => d.invest.items.push({ name: "New item", desc: "Description", qty: "—", unit: "—", amount: 0 }))}
@@ -129,7 +131,7 @@ export function CoverSlice({ blocks, continued }: SectionSliceProps) {
                 </div>
                 <div className="t-r">{money(sum, inv.meta.currency)}</div>
               </div>
-            </>
+            </div>
           )}
         </div>
       )}

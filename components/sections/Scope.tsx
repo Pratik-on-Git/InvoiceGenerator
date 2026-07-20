@@ -2,7 +2,7 @@
 
 import { useInvoice } from "@/lib/state";
 import { move } from "@/lib/list";
-import type { FlowBlock } from "@/lib/pagination";
+import { flowBlockKey, type FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton, RemoveButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
@@ -14,7 +14,7 @@ export function ScopeSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
   const scope = inv.scope;
   const deliverables = blocks.filter((block): block is DeliverableBlock => block.kind === "deliverable");
-  const showNote = blocks.some((block) => block.kind === "scope-note");
+  const noteBlock = blocks.find((block) => block.kind === "scope-note");
 
   return (
     <section className="flow-section">
@@ -32,11 +32,12 @@ export function ScopeSlice({ blocks, continued }: SectionSliceProps) {
 
       {deliverables.length > 0 && (
         <div className="deliv-grid">
-          {deliverables.map(({ index }) => {
+          {deliverables.map((block) => {
+            const { index } = block;
             const deliverable = scope.deliverables[index];
             if (!deliverable) return null;
             return (
-              <div className="deliv rowwrap" key={index}>
+              <div className="deliv rowwrap" data-flow-key={flowBlockKey(block)} key={index}>
                 <ItemControls
                   index={index}
                   count={scope.deliverables.length}
@@ -68,8 +69,8 @@ export function ScopeSlice({ blocks, continued }: SectionSliceProps) {
         </div>
       )}
 
-      {showNote && (
-        <>
+      {noteBlock && (
+        <div className="flow-atomic" data-flow-key={flowBlockKey(noteBlock)}>
           <AddButton
             label="deliverable"
             onAdd={() => set((d) => d.scope.deliverables.push({
@@ -82,7 +83,7 @@ export function ScopeSlice({ blocks, continued }: SectionSliceProps) {
             }))}
           />
           <Editable as="div" rich className="note-strip" value={scope.note} onCommit={(v) => set((d) => (d.scope.note = v))} />
-        </>
+        </div>
       )}
     </section>
   );
