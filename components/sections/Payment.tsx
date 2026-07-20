@@ -2,144 +2,121 @@
 
 import { useInvoice } from "@/lib/state";
 import { move } from "@/lib/list";
+import type { FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton, RemoveButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
-import { AutoPaginatedSection, type PaginatedSectionProps } from "../AutoPaginatedSection";
+import type { SectionSliceProps } from "./types";
 
-type Block =
-  | { kind: "payment"; index: number }
-  | { kind: "signatures"; indexes: number[] }
-  | { kind: "thanks" };
+type PaymentRowBlock = Extract<FlowBlock, { kind: "payment-row" }>;
+type SignatureBlock = Extract<FlowBlock, { kind: "signature" }>;
 
-export function Payment({ startPage, total, onPageCountChange }: PaginatedSectionProps) {
+export function PaymentSlice({ blocks, continued }: SectionSliceProps) {
   const { inv, set } = useInvoice();
-  const p = inv.payment;
-  const paymentRows = Math.max(p.bank.length, p.contact.length, 1);
-  const blocks: Block[] = Array.from({ length: paymentRows }, (_, index) => ({ kind: "payment" as const, index }));
-
-  if (p.signs.length === 0) blocks.push({ kind: "signatures", indexes: [] });
-  for (let i = 0; i < p.signs.length; i += 2) {
-    blocks.push({ kind: "signatures", indexes: [i, i + 1].filter((index) => index < p.signs.length) });
-  }
-  blocks.push({ kind: "thanks" });
+  const payment = inv.payment;
+  const rowBlocks = blocks.filter((block): block is PaymentRowBlock => block.kind === "payment-row");
+  const signatureBlocks = blocks.filter((block): block is SignatureBlock => block.kind === "signature");
+  const signaturesEmpty = blocks.some((block) => block.kind === "signatures-empty");
+  const showThanks = blocks.some((block) => block.kind === "thanks");
+  const showBankAdd = rowBlocks.some((block) => block.index === Math.max(payment.bank.length - 1, 0));
+  const showContactAdd = rowBlocks.some((block) => block.index === Math.max(payment.contact.length - 1, 0));
+  const showSignAdd = signaturesEmpty || signatureBlocks.some((block) => block.index === payment.signs.length - 1);
 
   return (
-    <AutoPaginatedSection
-      itemCount={blocks.length}
-      layoutKey={JSON.stringify(p)}
-      startPage={startPage}
-      total={total}
-      onPageCountChange={onPageCountChange}
-      renderPage={(blockIndexes, pageIndex) => {
-        const selected = blockIndexes.map((index) => blocks[index]).filter(Boolean);
-        const paymentIndexes = selected
-          .filter((block): block is Extract<Block, { kind: "payment" }> => block.kind === "payment")
-          .map((block) => block.index);
-        const signatureBlocks = selected.filter((block): block is Extract<Block, { kind: "signatures" }> => block.kind === "signatures");
-        const signatureIndexes = signatureBlocks.flatMap((block) => block.indexes);
-        const showThanks = selected.some((block) => block.kind === "thanks");
-        const showBankAdd = paymentIndexes.includes(Math.max(p.bank.length - 1, 0));
-        const showContactAdd = paymentIndexes.includes(Math.max(p.contact.length - 1, 0));
-        const showSignAdd = signatureBlocks.some((block) => block.indexes.length === 0 || block.indexes.includes(p.signs.length - 1));
+    <section className="flow-section">
+      <Editable as="div" className="sec-num" value={payment.num} onCommit={(v) => set((d) => (d.payment.num = v))} />
+      {!continued ? (
+        <Editable as="div" className="sec-title" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />
+      ) : (
+        <div className="sec-title">
+          <Editable as="span" value={payment.title} onCommit={(v) => set((d) => (d.payment.title = v))} />{" "}
+          <span className="muted">— continued</span>
+        </div>
+      )}
+      <div className="sec-rule" />
 
-        return (
-          <>
-            <Editable as="div" className="sec-num" value={p.num} onCommit={(v) => set((d) => (d.payment.num = v))} />
-            {pageIndex === 0 ? (
-              <Editable as="div" className="sec-title" value={p.title} onCommit={(v) => set((d) => (d.payment.title = v))} />
-            ) : (
-              <div className="sec-title">
-                <Editable as="span" value={p.title} onCommit={(v) => set((d) => (d.payment.title = v))} />{" "}
-                <span className="muted">— continued</span>
-              </div>
-            )}
-            <div className="sec-rule" />
-
-            {paymentIndexes.length > 0 && (
-              <div className="pay-grid">
-                <div className="pay-card">
-                  <Editable as="div" className="label pc-label" value={p.bankLabel} onCommit={(v) => set((d) => (d.payment.bankLabel = v))} />
-                  {paymentIndexes.map((i) => {
-                    const row = p.bank[i];
-                    if (!row) return null;
-                    return (
-                      <div className="kv rowwrap" key={i}>
-                        <Editable as="span" className="k" value={row.k} onCommit={(v) => set((d) => (d.payment.bank[i].k = v))} />
-                        <Editable as="span" className="v" value={row.v} onCommit={(v) => set((d) => (d.payment.bank[i].v = v))} />
-                        <RemoveButton onRemove={() => set((d) => d.payment.bank.splice(i, 1))} />
-                      </div>
-                    );
-                  })}
-                  {showBankAdd && <AddButton inline label="row" onAdd={() => set((d) => d.payment.bank.push({ k: "Label", v: "Value" }))} />}
+      {rowBlocks.length > 0 && (
+        <div className="pay-grid">
+          <div className="pay-card">
+            <Editable as="div" className="label pc-label" value={payment.bankLabel} onCommit={(v) => set((d) => (d.payment.bankLabel = v))} />
+            {rowBlocks.map(({ index }) => {
+              const row = payment.bank[index];
+              if (!row) return null;
+              return (
+                <div className="kv rowwrap" key={index}>
+                  <Editable as="span" className="k" value={row.k} onCommit={(v) => set((d) => (d.payment.bank[index].k = v))} />
+                  <Editable as="span" className="v" value={row.v} onCommit={(v) => set((d) => (d.payment.bank[index].v = v))} />
+                  <RemoveButton onRemove={() => set((d) => d.payment.bank.splice(index, 1))} />
                 </div>
-                <div className="pay-card dark">
-                  <Editable as="div" className="label pc-label" value={p.contactLabel} onCommit={(v) => set((d) => (d.payment.contactLabel = v))} />
-                  <div className="pay-person">
-                    <Editable as="div" className="pp-name" value={p.personName} onCommit={(v) => set((d) => (d.payment.personName = v))} />
-                    <Editable as="div" className="pp-role" value={p.personRole} onCommit={(v) => set((d) => (d.payment.personRole = v))} />
+              );
+            })}
+            {showBankAdd && <AddButton inline label="row" onAdd={() => set((d) => d.payment.bank.push({ k: "Label", v: "Value" }))} />}
+          </div>
+          <div className="pay-card dark">
+            <Editable as="div" className="label pc-label" value={payment.contactLabel} onCommit={(v) => set((d) => (d.payment.contactLabel = v))} />
+            <div className="pay-person">
+              <Editable as="div" className="pp-name" value={payment.personName} onCommit={(v) => set((d) => (d.payment.personName = v))} />
+              <Editable as="div" className="pp-role" value={payment.personRole} onCommit={(v) => set((d) => (d.payment.personRole = v))} />
+            </div>
+            {rowBlocks.map(({ index }) => {
+              const row = payment.contact[index];
+              if (!row) return null;
+              return (
+                <div className="kv rowwrap" key={index}>
+                  <Editable as="span" className="k" value={row.k} onCommit={(v) => set((d) => (d.payment.contact[index].k = v))} />
+                  <Editable as="span" className="v" value={row.v} onCommit={(v) => set((d) => (d.payment.contact[index].v = v))} />
+                  <RemoveButton onRemove={() => set((d) => d.payment.contact.splice(index, 1))} />
+                </div>
+              );
+            })}
+            {showContactAdd && <AddButton inline label="row" onAdd={() => set((d) => d.payment.contact.push({ k: "Label", v: "Value" }))} />}
+          </div>
+        </div>
+      )}
+
+      {(signatureBlocks.length > 0 || signaturesEmpty) && (
+        <>
+          <div className="group-head content-group-head">
+            <Editable as="span" className="g-tag" value={payment.signTag} onCommit={(v) => set((d) => (d.payment.signTag = v))} />
+            <Editable as="span" className="g-title" value={payment.signTitle} onCommit={(v) => set((d) => (d.payment.signTitle = v))} />
+            <span className="g-line" />
+          </div>
+          <Editable as="p" className="lead sign-lead" value={payment.signLead} onCommit={(v) => set((d) => (d.payment.signLead = v))} />
+          {signatureBlocks.length > 0 && (
+            <div className="sign-grid">
+              {signatureBlocks.map(({ index }) => {
+                const signature = payment.signs[index];
+                if (!signature) return null;
+                return (
+                  <div className="sign rowwrap" key={index}>
+                    <ItemControls
+                      index={index}
+                      count={payment.signs.length}
+                      onMove={(from, to) => set((d) => move(d.payment.signs, from, to))}
+                      onRemove={() => set((d) => d.payment.signs.splice(index, 1))}
+                    />
+                    <Editable as="div" className="s-name" value={signature.name} onCommit={(v) => set((d) => (d.payment.signs[index].name = v))} />
+                    <Editable as="div" className="s-role" value={signature.role} onCommit={(v) => set((d) => (d.payment.signs[index].role = v))} />
+                    <div className="s-box" />
+                    <div className="s-cap">Signature &amp; Date</div>
                   </div>
-                  {paymentIndexes.map((i) => {
-                    const row = p.contact[i];
-                    if (!row) return null;
-                    return (
-                      <div className="kv rowwrap" key={i}>
-                        <Editable as="span" className="k" value={row.k} onCommit={(v) => set((d) => (d.payment.contact[i].k = v))} />
-                        <Editable as="span" className="v" value={row.v} onCommit={(v) => set((d) => (d.payment.contact[i].v = v))} />
-                        <RemoveButton onRemove={() => set((d) => d.payment.contact.splice(i, 1))} />
-                      </div>
-                    );
-                  })}
-                  {showContactAdd && <AddButton inline label="row" onAdd={() => set((d) => d.payment.contact.push({ k: "Label", v: "Value" }))} />}
-                </div>
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
+          {showSignAdd && payment.signs.length < 2 && <AddButton label="signatory" onAdd={() => set((d) => d.payment.signs.push({ name: "Name", role: "Role" }))} />}
+        </>
+      )}
 
-            {signatureBlocks.length > 0 && (
-              <>
-                <div className="group-head content-group-head">
-                  <Editable as="span" className="g-tag" value={p.signTag} onCommit={(v) => set((d) => (d.payment.signTag = v))} />
-                  <Editable as="span" className="g-title" value={p.signTitle} onCommit={(v) => set((d) => (d.payment.signTitle = v))} />
-                  <span className="g-line" />
-                </div>
-                <Editable as="p" className="lead sign-lead" value={p.signLead} onCommit={(v) => set((d) => (d.payment.signLead = v))} />
-                {signatureIndexes.length > 0 && (
-                  <div className="sign-grid">
-                    {signatureIndexes.map((i) => {
-                      const signature = p.signs[i];
-                      return (
-                        <div className="sign rowwrap" key={i}>
-                          <ItemControls
-                            index={i}
-                            count={p.signs.length}
-                            onMove={(from, to) => set((d) => move(d.payment.signs, from, to))}
-                            onRemove={() => set((d) => d.payment.signs.splice(i, 1))}
-                          />
-                          <Editable as="div" className="s-name" value={signature.name} onCommit={(v) => set((d) => (d.payment.signs[i].name = v))} />
-                          <Editable as="div" className="s-role" value={signature.role} onCommit={(v) => set((d) => (d.payment.signs[i].role = v))} />
-                          <div className="s-box" />
-                          <div className="s-cap">Signature &amp; Date</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {showSignAdd && p.signs.length < 2 && <AddButton label="signatory" onAdd={() => set((d) => d.payment.signs.push({ name: "Name", role: "Role" }))} />}
-              </>
-            )}
-
-            {showThanks && (
-              <div className="thanks">
-                <div className="t-big">
-                  <Editable as="span" value={p.thanksA} onCommit={(v) => set((d) => (d.payment.thanksA = v))} />{" "}
-                  <Editable as="span" className="blue" value={p.thanksB} onCommit={(v) => set((d) => (d.payment.thanksB = v))} />
-                </div>
-                <Editable as="div" className="t-sub" value={p.thanksSub} onCommit={(v) => set((d) => (d.payment.thanksSub = v))} />
-              </div>
-            )}
-          </>
-        );
-      }}
-    />
+      {showThanks && (
+        <div className="thanks">
+          <div className="t-big">
+            <Editable as="span" value={payment.thanksA} onCommit={(v) => set((d) => (d.payment.thanksA = v))} />{" "}
+            <Editable as="span" className="blue" value={payment.thanksB} onCommit={(v) => set((d) => (d.payment.thanksB = v))} />
+          </div>
+          <Editable as="div" className="t-sub" value={payment.thanksSub} onCommit={(v) => set((d) => (d.payment.thanksSub = v))} />
+        </div>
+      )}
+    </section>
   );
 }

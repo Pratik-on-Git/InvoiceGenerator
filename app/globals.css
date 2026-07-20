@@ -237,6 +237,13 @@ html {
   min-width: 0;
 }
 
+/* Semantic sections share the same physical page whenever they fit. The gap is
+   part of measured flow, so a heading is moved with its first block rather than
+   being orphaned at the bottom of a sheet. */
+.flow-section + .flow-section {
+  margin-top: 10mm;
+}
+
 /* ---------- Footer ---------- */
 .foot {
   position: absolute;

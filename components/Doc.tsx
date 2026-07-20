@@ -1,67 +1,89 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 import { useInvoice } from "@/lib/state";
-import { Cover } from "./sections/Cover";
-import { Scope } from "./sections/Scope";
-import { Features } from "./sections/Features";
-import { Terms } from "./sections/Terms";
-import { Requirements } from "./sections/Requirements";
-import { Payment } from "./sections/Payment";
+import { buildDocumentFlow, flowBlockKey, type FlowBlock, type FlowSection } from "@/lib/pagination";
+import { AutoPaginatedDocument } from "./AutoPaginatedDocument";
+import { CoverSlice } from "./sections/Cover";
+import { ScopeSlice } from "./sections/Scope";
+import { FeaturesSlice } from "./sections/Features";
+import { TermsSlice } from "./sections/Terms";
+import { RequirementsSlice } from "./sections/Requirements";
+import { PaymentSlice } from "./sections/Payment";
 
-type Def =
-  | { id: string; type: "cover" | "scope" | "terms" | "req" | "pay" }
-  | { id: string; type: "feat"; gi: number };
+interface Slice {
+  section: FlowSection;
+  blocks: FlowBlock[];
+  firstGlobalIndex: number;
+  lastGlobalIndex: number;
+}
 
 export function Doc({ onPageCountChange }: { onPageCountChange: (count: number) => void }) {
   const { inv } = useInvoice();
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const flow = buildDocumentFlow(inv);
+  const firstBySection = new Map<FlowSection, number>();
+  const lastBySection = new Map<FlowSection, number>();
+  flow.forEach((block, index) => {
+    if (!firstBySection.has(block.section)) firstBySection.set(block.section, index);
+    lastBySection.set(block.section, index);
+  });
 
-  const defs: Def[] = [{ id: "cover", type: "cover" }];
-  if (inv.scope.enabled) defs.push({ id: "scope", type: "scope" });
-  if (inv.features.enabled) {
-    if (inv.features.groups.length === 0) defs.push({ id: "feat-empty", type: "feat", gi: -1 });
-    else inv.features.groups.forEach((_, gi) => defs.push({ id: `feat-${gi}`, type: "feat", gi }));
-  }
-  if (inv.terms.enabled) defs.push({ id: "terms", type: "terms" });
-  if (inv.requirements.enabled) defs.push({ id: "req", type: "req" });
-  if (inv.payment.enabled) defs.push({ id: "pay", type: "pay" });
+  const renderPage = (blockIndexes: number[], pageIndex: number) => {
+    const selected = blockIndexes
+      .map((globalIndex) => ({ block: flow[globalIndex], globalIndex }))
+      .filter((entry): entry is { block: FlowBlock; globalIndex: number } => Boolean(entry.block));
+    const slices: Slice[] = [];
 
-  const total = defs.reduce((sum, def) => sum + (counts[def.id] ?? 1), 0);
-  const accentStyle = { "--blue": inv.meta.accent } as CSSProperties;
+    selected.forEach(({ block, globalIndex }) => {
+      const current = slices[slices.length - 1];
+      if (current?.section === block.section) {
+        current.blocks.push(block);
+        current.lastGlobalIndex = globalIndex;
+      } else {
+        slices.push({
+          section: block.section,
+          blocks: [block],
+          firstGlobalIndex: globalIndex,
+          lastGlobalIndex: globalIndex,
+        });
+      }
+    });
 
-  useEffect(() => {
-    const id = window.setTimeout(() => onPageCountChange(total), 0);
-    return () => window.clearTimeout(id);
-  }, [onPageCountChange, total]);
+    return slices.map((slice) => {
+      const props = {
+        blocks: slice.blocks,
+        continued: slice.firstGlobalIndex !== firstBySection.get(slice.section),
+        isSectionEnd: slice.lastGlobalIndex === lastBySection.get(slice.section),
+      };
+      const key = `${pageIndex}-${slice.section}-${slice.firstGlobalIndex}`;
 
-  let nextPage = 1;
+      switch (slice.section) {
+        case "cover":
+          return <CoverSlice key={key} {...props} />;
+        case "scope":
+          return <ScopeSlice key={key} {...props} />;
+        case "features":
+          return <FeaturesSlice key={key} {...props} />;
+        case "terms":
+          return <TermsSlice key={key} {...props} />;
+        case "requirements":
+          return <RequirementsSlice key={key} {...props} />;
+        case "payment":
+          return <PaymentSlice key={key} {...props} />;
+      }
+    });
+  };
+
   return (
-    <div className="doc" style={accentStyle}>
-      {defs.map((def) => {
-        const startPage = nextPage;
-        nextPage += counts[def.id] ?? 1;
-        const report = (count: number) => {
-          setCounts((current) => current[def.id] === count ? current : { ...current, [def.id]: count });
-        };
-        const props = { startPage, total, onPageCountChange: report };
-
-        switch (def.type) {
-          case "cover":
-            return <Cover key={def.id} {...props} />;
-          case "scope":
-            return <Scope key={def.id} {...props} />;
-          case "feat":
-            return <Features key={def.id} gi={def.gi} {...props} />;
-          case "terms":
-            return <Terms key={def.id} {...props} />;
-          case "req":
-            return <Requirements key={def.id} {...props} />;
-          case "pay":
-            return <Payment key={def.id} {...props} />;
-        }
-      })}
+    <div className="doc" style={{ "--blue": inv.meta.accent } as CSSProperties}>
+      <AutoPaginatedDocument
+        blockCount={flow.length}
+        blockKeys={flow.map(flowBlockKey)}
+        layoutKey={JSON.stringify(inv)}
+        onPageCountChange={onPageCountChange}
+        renderPage={renderPage}
+      />
     </div>
   );
 }

@@ -3,10 +3,13 @@
 import { useInvoice } from "@/lib/state";
 import { move } from "@/lib/list";
 import type { FeatureGroup } from "@/lib/types";
+import type { FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton } from "../Controls";
 import { ItemControls } from "../ItemControls";
-import { AutoPaginatedSection, type PaginatedSectionProps } from "../AutoPaginatedSection";
+import type { SectionSliceProps } from "./types";
+
+type FeatureBlock = Extract<FlowBlock, { kind: "feature" | "feature-empty" }>;
 
 const newGroup = (): FeatureGroup => ({
   tag: "Group",
@@ -15,100 +18,96 @@ const newGroup = (): FeatureGroup => ({
   items: [{ title: "New feature", desc: "Short description." }],
 });
 
-export function Features({
-  startPage,
-  total,
-  onPageCountChange,
-  gi,
-}: PaginatedSectionProps & { gi: number }) {
+export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceProps) {
   const { inv, set } = useInvoice();
-  const f = inv.features;
-  const empty = gi < 0 || !f.groups[gi];
-  const group = empty ? undefined : f.groups[gi];
-  const rowCount = Math.ceil((group?.items.length ?? 0) / 2);
-  const offset = empty ? 0 : f.groups.slice(0, gi).reduce((sum, item) => sum + item.items.length, 0);
-  const isLastGroup = empty || gi === f.groups.length - 1;
+  const features = inv.features;
+  const isCompletelyEmpty = blocks.some((block) => block.kind === "features-empty");
+  const featureBlocks = blocks.filter((block): block is FeatureBlock => block.kind === "feature" || block.kind === "feature-empty");
+  const groupIndexes = [...new Set(featureBlocks.map((block) => block.groupIndex))];
 
   return (
-    <AutoPaginatedSection
-      itemCount={rowCount}
-      layoutKey={JSON.stringify({ num: f.num, title: f.title, lead: f.lead, group })}
-      startPage={startPage}
-      total={total}
-      onPageCountChange={onPageCountChange}
-      renderPage={(rowIndexes, pageIndex, isLastPage) => {
-        const itemIndexes = rowIndexes.flatMap((row) => [row * 2, row * 2 + 1]).filter((i) => i < (group?.items.length ?? 0));
-        const firstSectionPage = gi <= 0 && pageIndex === 0;
-        return (
-          <>
-            <Editable as="div" className="sec-num" value={f.num} onCommit={(v) => set((d) => (d.features.num = v))} />
-            {firstSectionPage ? (
-              <Editable as="div" className="sec-title" value={f.title} onCommit={(v) => set((d) => (d.features.title = v))} />
-            ) : (
-              <div className="sec-title">
-                <Editable as="span" value={f.title} onCommit={(v) => set((d) => (d.features.title = v))} />{" "}
-                <span className="muted">— continued</span>
-              </div>
-            )}
-            <div className="sec-rule" />
-            {firstSectionPage && <Editable as="p" rich className="lead" value={f.lead} onCommit={(v) => set((d) => (d.features.lead = v))} />}
+    <section className="flow-section">
+      <Editable as="div" className="sec-num" value={features.num} onCommit={(v) => set((d) => (d.features.num = v))} />
+      {!continued ? (
+        <Editable as="div" className="sec-title" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />
+      ) : (
+        <div className="sec-title">
+          <Editable as="span" value={features.title} onCommit={(v) => set((d) => (d.features.title = v))} />{" "}
+          <span className="muted">— continued</span>
+        </div>
+      )}
+      <div className="sec-rule" />
+      {!continued && <Editable as="p" rich className="lead" value={features.lead} onCommit={(v) => set((d) => (d.features.lead = v))} />}
 
-            {empty ? (
-              <div className="empty-section">
-                <p className="lead">No feature groups yet.</p>
-                <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />
-              </div>
-            ) : (
-              <>
-                <div className="group-head rowwrap feature-group-head">
-                  <Editable as="span" className="g-tag" value={group!.tag} onCommit={(v) => set((d) => (d.features.groups[gi].tag = v))} />
-                  <Editable as="span" className="g-title" value={group!.title} onCommit={(v) => set((d) => (d.features.groups[gi].title = v))} />
-                  <span className="g-line" />
-                  <Editable as="span" className="g-count" value={group!.range} placeholder="range" onCommit={(v) => set((d) => (d.features.groups[gi].range = v))} />
-                  {pageIndex === 0 && (
-                    <ItemControls
-                      index={gi}
-                      count={f.groups.length}
-                      onMove={(from, to) => set((d) => move(d.features.groups, from, to))}
-                      onRemove={() => set((d) => d.features.groups.splice(gi, 1))}
-                    />
-                  )}
-                </div>
+      {isCompletelyEmpty ? (
+        <div className="empty-section">
+          <p className="lead">No feature groups yet.</p>
+          <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />
+        </div>
+      ) : (
+        groupIndexes.map((groupIndex) => {
+          const group = features.groups[groupIndex];
+          if (!group) return null;
+          const selected = featureBlocks.filter((block) => block.groupIndex === groupIndex);
+          const items = selected.filter((block): block is Extract<FlowBlock, { kind: "feature" }> => block.kind === "feature");
+          const empty = selected.some((block) => block.kind === "feature-empty");
+          const groupStart = empty || items.some((block) => block.index === 0);
+          const groupEnd = empty || items.some((block) => block.index === group.items.length - 1);
+          const offset = features.groups.slice(0, groupIndex).reduce((sum, item) => sum + item.items.length, 0);
 
-                {itemIndexes.length > 0 && (
-                  <div className="feat-grid">
-                    {itemIndexes.map((j) => {
-                      const item = group!.items[j];
-                      return (
-                        <div className="feat rowwrap" key={j}>
-                          <div className="f-n">{offset + j + 1}</div>
-                          <div className="f-body">
-                            <Editable as="div" className="f-t" value={item.title} onCommit={(v) => set((d) => (d.features.groups[gi].items[j].title = v))} />
-                            <Editable as="div" className="f-d" value={item.desc} onCommit={(v) => set((d) => (d.features.groups[gi].items[j].desc = v))} />
-                          </div>
-                          <ItemControls
-                            index={j}
-                            count={group!.items.length}
-                            onMove={(from, to) => set((d) => move(d.features.groups[gi].items, from, to))}
-                            onRemove={() => set((d) => d.features.groups[gi].items.splice(j, 1))}
-                          />
+          return (
+            <div className="feature-group-block" key={groupIndex}>
+              <div className="group-head rowwrap feature-group-head">
+                <Editable as="span" className="g-tag" value={group.tag} onCommit={(v) => set((d) => (d.features.groups[groupIndex].tag = v))} />
+                <Editable as="span" className="g-title" value={group.title} onCommit={(v) => set((d) => (d.features.groups[groupIndex].title = v))} />
+                <span className="g-line" />
+                <Editable as="span" className="g-count" value={group.range} placeholder="range" onCommit={(v) => set((d) => (d.features.groups[groupIndex].range = v))} />
+                {groupStart && (
+                  <ItemControls
+                    index={groupIndex}
+                    count={features.groups.length}
+                    onMove={(from, to) => set((d) => move(d.features.groups, from, to))}
+                    onRemove={() => set((d) => d.features.groups.splice(groupIndex, 1))}
+                  />
+                )}
+              </div>
+
+              {items.length > 0 && (
+                <div className="feat-grid">
+                  {items.map(({ index }) => {
+                    const item = group.items[index];
+                    if (!item) return null;
+                    return (
+                      <div className="feat rowwrap" key={index}>
+                        <div className="f-n">{offset + index + 1}</div>
+                        <div className="f-body">
+                          <Editable as="div" className="f-t" value={item.title} onCommit={(v) => set((d) => (d.features.groups[groupIndex].items[index].title = v))} />
+                          <Editable as="div" className="f-d" value={item.desc} onCommit={(v) => set((d) => (d.features.groups[groupIndex].items[index].desc = v))} />
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        <ItemControls
+                          index={index}
+                          count={group.items.length}
+                          onMove={(from, to) => set((d) => move(d.features.groups[groupIndex].items, from, to))}
+                          onRemove={() => set((d) => d.features.groups[groupIndex].items.splice(index, 1))}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                {isLastPage && (
-                  <>
-                    <AddButton label="feature" onAdd={() => set((d) => d.features.groups[gi].items.push({ title: "New feature", desc: "Short description." }))} />
-                    {isLastGroup && <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />}
-                  </>
-                )}
-              </>
-            )}
-          </>
-        );
-      }}
-    />
+              {groupEnd && (
+                <>
+                  <AddButton label="feature" onAdd={() => set((d) => d.features.groups[groupIndex].items.push({ title: "New feature", desc: "Short description." }))} />
+                  {groupIndex === features.groups.length - 1 && isSectionEnd && (
+                    <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })
+      )}
+    </section>
   );
 }
