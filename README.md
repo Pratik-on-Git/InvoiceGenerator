@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blue Moon Creatives — Invoice / Quotation Generator
 
-## Getting Started
+A Next.js app that turns the Blue Moon Creatives quotation design into a **live, fully
+editable document generator**. The on-screen document is pixel-identical to the printed
+quotation; every field is editable inline, and **Download PDF** produces the same A4 pages.
 
-First, run the development server:
+## Run it
+
+> ⚠️ This folder's path contains spaces ("Blue Moon Creations"), which breaks the `npx`
+> and `.bin` shims on Windows. Call the Next binary through `node` directly:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# from inside invoice-generator/
+node ./node_modules/next/dist/bin/next dev        # dev server  -> http://localhost:3000
+node ./node_modules/next/dist/bin/next build      # production build
+node ./node_modules/next/dist/bin/next start      # serve the build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+(Plain `npm run dev` also works if your path has no spaces.)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Using the app
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Edit inline** — click any text on the document and type. `Ctrl/Cmd+B` bolds a
+  selection inside rich fields (leads, terms, notes).
+- **Add / remove / reorder** — hover any repeatable item (line items, features,
+  deliverables, terms, milestones, requirements, signatories, footer lines) for the
+  ↑ ↓ × controls; use the dashed **+ …** buttons to add.
+- **Investment total** recomputes live from the line-item amounts.
+- **Section toggles** (top bar) show/hide the Scope, Features, Terms, Requirements and
+  Payment pages. Page numbers renumber automatically.
+- **Logo** upload and **accent colour** picker rebrand the whole document.
+- **Preview** hides all editing chrome; **Download PDF** opens the print dialog
+  (choose *Save as PDF*, margins **None**, **Background graphics on**).
+- **Export JSON / Import** saves and reloads a document; edits also autosave to the
+  browser (localStorage).
+- **⚠ Overflows A4** badge appears on any page whose content would be clipped in the
+  PDF — split it (e.g. move features to a new group) or disable a section.
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```text
+app/
+  layout.tsx        Root layout + Hanken Grotesque webfont
+  globals.css       Design system (identical to the quotation) + app chrome + print CSS
+  page.tsx          Renders <Generator/>
+lib/
+  types.ts          Invoice data model (mirrors the printed layout 1:1)
+  defaultInvoice.ts Default document (the Kanthiveda Herbals quotation)
+  state.tsx         React context: { inv, set, editing }
+  format.ts         Indian-style money grouping
+  list.ts           move() / removeAt() array helpers
+components/
+  Generator.tsx     State, autosave, import/export, print, context provider
+  AppBar.tsx        Toolbar (toggles, logo, colour, file actions)
+  Doc.tsx           Builds the ordered page list + auto page numbering
+  PageFrame.tsx     A4 sheet, footer, live overflow detection
+  Editable.tsx      Cursor-safe inline contentEditable (text / rich / numeric)
+  Controls.tsx      AddButton / RemoveButton
+  ItemControls.tsx  Reorder (↑↓) + remove cluster
+  sections/         Cover, Scope, Features, Terms, Requirements, Payment
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Adding a new field is a three-step change: add it to `types.ts`, give it a value in
+`defaultInvoice.ts`, and drop an `<Editable>` bound to its path into the relevant section.
