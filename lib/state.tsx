@@ -19,3 +19,28 @@ export function useInvoice(): Ctx {
   if (!ctx) throw new Error("useInvoice must be used inside <InvoiceCtx.Provider>");
   return ctx;
 }
+
+export type SaveState = "saving" | "saved" | "error";
+
+// UI/actions context — lets the dashboard shell (sidebar, header, toolbar)
+// reach the document actions without prop-drilling through every layer.
+export interface UI {
+  editing: boolean;
+  setEditing: (v: boolean) => void;
+  saveState: SaveState;
+  zoom: number;
+  setZoom: (v: number | ((z: number) => number)) => void;
+  onDownload: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
+  onReset: () => void;
+  onLogo: (file: File) => void;
+}
+
+export const UICtx = createContext<UI | null>(null);
+
+export function useUI(): UI {
+  const ctx = useContext(UICtx);
+  if (!ctx) throw new Error("useUI must be used inside <UICtx.Provider>");
+  return ctx;
+}

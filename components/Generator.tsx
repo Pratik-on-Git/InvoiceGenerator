@@ -1,10 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { InvoiceCtx, type Updater } from "@/lib/state";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { toast } from "sonner";
+
+import { InvoiceCtx, UICtx, type Updater, type SaveState } from "@/lib/state";
 import type { Invoice } from "@/lib/types";
 import { defaultInvoice } from "@/lib/defaultInvoice";
-import { AppBar } from "./AppBar";
+import { cn } from "@/lib/utils";
+
+import { SidebarInset } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { AppSidebar } from "./shell/AppSidebar";
+import { AppHeader } from "./shell/AppHeader";
+import { AppFooter } from "./shell/AppFooter";
+import { DocToolbar } from "./shell/DocToolbar";
+import { SummaryStrip } from "./shell/SummaryStrip";
 import { Doc } from "./Doc";
 
 const STORAGE_KEY = "bmc-invoice-v1";
@@ -15,7 +25,7 @@ function isObj(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
 function merge<T>(base: T, over: unknown): T {
-  if (!isObj(base) || !isObj(over)) return (over === undefined ? base : (over as T));
+  if (!isObj(base) || !isObj(over)) return over === undefined ? base : (over as T);
   const out: Record<string, unknown> = { ...base };
   for (const k of Object.keys(base as Record<string, unknown>)) {
     out[k] = merge((base as Record<string, unknown>)[k], (over as Record<string, unknown>)[k]);
@@ -26,7 +36,8 @@ function merge<T>(base: T, over: unknown): T {
 export function Generator() {
   const [inv, setInv] = useState<Invoice>(defaultInvoice);
   const [editing, setEditing] = useState(true);
-  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">("saved");
+  const [zoom, setZoom] = useState(1);
+  const [saveState, setSaveState] = useState<SaveState>("saved");
   const hydrated = useRef(false);
 
   // Load once on mount.
@@ -83,6 +94,7 @@ export function Generator() {
     a.download = `${inv.meta.docNo || "invoice"}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success("Document exported", { description: `${a.download}` });
   }, [inv]);
 
   const onImport = useCallback((file: File) => {
@@ -92,47 +104,61 @@ export function Generator() {
         const parsed = JSON.parse(String(reader.result));
         // Shape guard: reject arrays/primitives or exports missing core sections.
         if (!isObj(parsed) || !isObj(parsed.meta) || !isObj(parsed.cover) || !isObj(parsed.invest)) {
-          alert("That JSON does not look like a Blue Moon invoice export.");
+          toast.error("Invalid file", { description: "That JSON is not a Blue Moon invoice export." });
           return;
         }
         setInv(merge(defaultInvoice, parsed));
+        toast.success("Document imported");
       } catch {
-        alert("That file is not valid JSON.");
+        toast.error("Could not read that file", { description: "It is not valid JSON." });
       }
     };
-    reader.onerror = () => alert("Could not read that file.");
+    reader.onerror = () => toast.error("Could not read that file.");
     reader.readAsText(file);
   }, []);
 
   const onReset = useCallback(() => {
     if (confirm("Reset the document to the default template? Your current edits will be lost.")) {
       setInv(structuredClone(defaultInvoice));
+      toast.success("Reset to the default template");
     }
   }, []);
 
-  const onLogo = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => set((d) => (d.brand.logo = String(reader.result)));
-    reader.readAsDataURL(file);
-  }, [set]);
+  const onLogo = useCallback(
+    (file: File) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        set((d) => (d.brand.logo = String(reader.result)));
+        toast.success("Logo updated");
+      };
+      reader.readAsDataURL(file);
+    },
+    [set]
+  );
 
   return (
     <InvoiceCtx.Provider value={{ inv, set, editing }}>
-      <div className={"app" + (editing ? " editing" : "")}>
-        <AppBar
-          editing={editing}
-          setEditing={setEditing}
-          saveState={saveState}
-          onDownload={onDownload}
-          onExport={onExport}
-          onImport={onImport}
-          onReset={onReset}
-          onLogo={onLogo}
-        />
-        <main className="stage">
-          <Doc />
-        </main>
-      </div>
+      <UICtx.Provider
+        value={{ editing, setEditing, saveState, zoom, setZoom, onDownload, onExport, onImport, onReset, onLogo }}
+      >
+        <div className="flex min-h-svh w-full min-w-0 flex-1">
+          <AppSidebar />
+          <SidebarInset className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <AppHeader />
+            <div className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col gap-4 p-3 sm:p-4">
+              <SummaryStrip />
+              <DocToolbar />
+              <div className={cn("stage min-w-0 flex-1 rounded-xl border", editing && "editing")}>
+                <div className="doc-scaler mx-auto w-fit" style={{ zoom } as CSSProperties}>
+                  <Doc />
+                </div>
+              </div>
+            </div>
+            <AppFooter />
+          </SidebarInset>
+        </div>
+        <Toaster position="bottom-right" />
+      </UICtx.Provider>
     </InvoiceCtx.Provider>
   );
 }
