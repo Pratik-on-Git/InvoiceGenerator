@@ -29,12 +29,16 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
   const [pages, setPages] = useState<number[][]>(() => [allBlocks]);
   const [scales, setScales] = useState<Record<number, number>>({});
   const contentRefs = useRef(new Map<number, HTMLDivElement>());
+  const blockedPulls = useRef(new Set<number>());
+  const pullTrial = useRef<{ boundary: number; block: number } | null>(null);
 
   // Repack from the beginning whenever document content changes. Deferring the
   // update avoids a synchronous effect cascade and keeps active editors stable.
   useEffect(() => {
     const id = window.setTimeout(() => {
       if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) return;
+      blockedPulls.current.clear();
+      pullTrial.current = null;
       setPages([allBlocks]);
       setScales({});
     }, 120);
@@ -58,6 +62,24 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
 
       const naturalHeight = Math.max(content.scrollHeight, content.offsetHeight);
       if (naturalHeight <= body.clientHeight + 1) continue;
+
+      const trial = pullTrial.current;
+      if (trial?.boundary === pageIndex) {
+        // The speculative pull did not fit. Put that exact block back and
+        // remember the boundary until document content changes.
+        blockedPulls.current.add(pageIndex);
+        pullTrial.current = null;
+        setPages((current) => {
+          const next = current.map((items) => [...items]);
+          const currentPage = next[pageIndex];
+          if (!currentPage || currentPage[currentPage.length - 1] !== trial.block) return current;
+          currentPage.pop();
+          if (next[pageIndex + 1]) next[pageIndex + 1].unshift(trial.block);
+          else next.splice(pageIndex + 1, 0, [trial.block]);
+          return next;
+        });
+        return;
+      }
 
       const pageBlocks = pages[pageIndex];
       if (pageBlocks.length > 1) {
@@ -96,6 +118,29 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
       const scale = Math.min(1, body.clientHeight / Math.max(naturalHeight, 1));
       setScales((current) => ({ ...current, [pageIndex]: scale }));
       return;
+    }
+
+    // Every page fits. Pull the first block from a following page backward and
+    // let the next measured frame accept or revert it. This closes gaps caused
+    // by conditional headings, font hydration, and grid row reflow.
+    pullTrial.current = null;
+    const boundary = pages.findIndex((_, index) => (
+      index < pages.length - 1
+      && pages[index + 1].length > 0
+      && !blockedPulls.current.has(index)
+      && !scales[index]
+    ));
+    if (boundary >= 0) {
+      const block = pages[boundary + 1][0];
+      pullTrial.current = { boundary, block };
+      setPages((current) => {
+        const next = current.map((items) => [...items]);
+        if (!next[boundary] || next[boundary + 1]?.[0] !== block) return current;
+        next[boundary].push(block);
+        next[boundary + 1].shift();
+        if (next[boundary + 1].length === 0) next.splice(boundary + 1, 1);
+        return next;
+      });
     }
   }, [blockKeys, pages, scales]);
 
