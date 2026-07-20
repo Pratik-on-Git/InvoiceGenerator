@@ -174,12 +174,6 @@ html {
   print-color-adjust: exact;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 .doc {
   --bg: #f1f4f9;
   --blue: #005ef9;
