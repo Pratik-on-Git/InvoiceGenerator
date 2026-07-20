@@ -79,8 +79,6 @@ export function AutoPaginatedDocument({ blockCount, blockKeys, layoutKey, onPage
   // prevents even a one-frame gap where a newly inserted tail block (and its
   // add control) is absent while a user is making rapid consecutive edits.
   if (renderedBlockSignature !== blockSignature) {
-    blockedPulls.current.clear();
-    pullTrial.current = null;
     setRenderedBlockSignature(blockSignature);
     setScales({});
     setPages((current) => {
