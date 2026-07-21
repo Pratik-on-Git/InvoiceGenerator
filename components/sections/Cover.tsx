@@ -3,6 +3,7 @@
 import { useInvoice } from "@/lib/state";
 import { groupIN, money, digits } from "@/lib/format";
 import { move } from "@/lib/list";
+import { renameClient } from "@/lib/rename";
 import { flowBlockKey, type FlowBlock } from "@/lib/pagination";
 import { Editable } from "../Editable";
 import { AddButton, RemoveButton } from "../Controls";
@@ -59,7 +60,17 @@ export function CoverSlice({ blocks, continued }: SectionSliceProps) {
               return (
                 <div className="party" key={key}>
                   <Editable as="div" className="label" value={party.label} onCommit={(v) => set((d) => (d[key].label = v))} />
-                  <Editable as="div" className="p-name" value={party.name} onCommit={(v) => set((d) => (d[key].name = v))} />
+                  <Editable
+                    as="div"
+                    className="p-name"
+                    value={party.name}
+                    onCommit={(v) =>
+                      set((d) => {
+                        if (key === "client") renameClient(d, v);
+                        else d[key].name = v;
+                      })
+                    }
+                  />
                   <div className="p-lines">
                     {party.lines.map((line, index) => (
                       <div className="rowwrap" key={index}>

@@ -19,6 +19,7 @@ import {
 
 import { useInvoice, useUI, type SaveState } from "@/lib/state";
 import { money } from "@/lib/format";
+import { renameClient } from "@/lib/rename";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,7 +121,7 @@ export function EditView() {
               <Input value={inv.client.label} onChange={(e) => set((d) => (d.client.label = e.target.value))} />
             </Field>
             <Field label="Client name">
-              <Input value={inv.client.name} onChange={(e) => set((d) => (d.client.name = e.target.value))} />
+              <Input value={inv.client.name} onChange={(e) => set((d) => renameClient(d, e.target.value))} />
             </Field>
           </div>
           <Field label="Detail lines">
