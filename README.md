@@ -29,8 +29,8 @@ node ./node_modules/next/dist/bin/next start      # serve the build
 - **Section toggles** (top bar) show/hide the Scope, Features, Terms, Requirements and
   Payment pages. Page numbers renumber automatically.
 - **Logo** upload and **accent colour** picker rebrand the whole document.
-- **Preview** hides all editing chrome; **Download PDF** opens the print dialog
-  (choose *Save as PDF*, margins **None**, **Background graphics on**).
+- **Preview** hides all editing chrome; **Download PDF** downloads an A4 PDF directly
+  (each sheet is rasterised client-side via `jspdf` + `html2canvas-pro`) — no print dialog.
 - **Export JSON / Import** saves and reloads a document; edits also autosave to the
   browser (localStorage).
 - **Automatic A4 pagination** continuously packs every enabled section into the available

@@ -1202,6 +1202,29 @@ html {
   display: none;
 }
 
+/* Applied to .doc-scaler while rasterising to PDF: reset the on-screen zoom,
+   drop the sheet chrome, and hide editor-only controls so the captured image
+   matches the printed page exactly. */
+.pdf-exporting {
+  zoom: 1 !important;
+}
+.pdf-exporting .page {
+  margin: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.pdf-exporting .ctrl-remove,
+.pdf-exporting .ctrl-add,
+.pdf-exporting .item-ctrls,
+.pdf-exporting .add-slot,
+.pdf-exporting .no-print {
+  display: none !important;
+}
+.pdf-exporting [contenteditable] {
+  box-shadow: none !important;
+  background: none !important;
+}
+
 /* ============================================================ PRINT */
 @media print {
   [data-slot='sidebar'],

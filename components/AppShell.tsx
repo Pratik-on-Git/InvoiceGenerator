@@ -7,6 +7,7 @@ import { InvoiceCtx, UICtx, type Updater, type SaveState } from "@/lib/state";
 import type { Invoice } from "@/lib/types";
 import { defaultInvoice } from "@/lib/defaultInvoice";
 import { pageCount } from "@/lib/summary";
+import { exportInvoicePdf } from "@/lib/exportPdf";
 
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
@@ -82,18 +83,24 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const onDownload = useCallback(() => {
-    const prevTitle = document.title;
-    document.title = `${inv.brand.name} — ${inv.meta.docNo}`;
-    const restore = () => {
-      document.title = prevTitle;
-      window.removeEventListener("afterprint", restore);
-    };
-    window.addEventListener("afterprint", restore);
-    // Let a just-blurred editor commit and let measured pagination settle before
-    // the browser snapshots the DOM for printing.
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
-  }, [inv.brand.name, inv.meta.docNo]);
+  const onDownload = useCallback(async () => {
+    // Commit any in-progress inline edit before we snapshot the document.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+
+    const safeName = (inv.meta.docNo || "quotation").replace(/[\\/:*?"<>|]+/g, "-").trim() || "quotation";
+    const fileName = `${safeName}.pdf`;
+
+    const toastId = toast.loading("Generating PDF…");
+    try {
+      await exportInvoicePdf(fileName);
+      toast.success("PDF downloaded", { id: toastId, description: fileName });
+    } catch (err) {
+      toast.error("Could not generate the PDF", {
+        id: toastId,
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
+  }, [inv.meta.docNo]);
 
   const onExport = useCallback(() => {
     const blob = new Blob([JSON.stringify(inv, null, 2)], { type: "application/json" });
