@@ -25,7 +25,7 @@ export function AppHeader() {
 
   return (
     <header className="bg-card/80 supports-[backdrop-filter]:bg-card/60 no-print sticky top-0 z-40 border-b backdrop-blur">
-      <div className="flex h-14 items-center gap-3 px-3 sm:px-4">
+      <div className="flex h-15 items-center gap-3 px-3 sm:px-4">
         <SidebarTrigger className="[&_svg]:size-5!" />
         <Separator orientation="vertical" className="h-5!" />
         <Breadcrumb>
