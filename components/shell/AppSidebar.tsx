@@ -27,14 +27,11 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +44,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Logo } from "./Logo";
+import { DetailsSheet } from "./DetailsSheet";
+import { CollapsibleSection } from "./SidebarSection";
 
 const SECTIONS: { key: SectionKey; label: string; icon: LucideIcon }[] = [
   { key: "scope", label: "Scope & Deliverables", icon: ClipboardListIcon },
@@ -70,16 +69,18 @@ export function AppSidebar() {
         <Logo />
       </SidebarHeader>
 
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 py-1">
         {/* ---- Document pages / section visibility ---- */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="justify-between">
-            <span>Document Pages</span>
+        <CollapsibleSection
+          label="Document Pages"
+          defaultOpen
+          badge={
             <Badge variant="secondary" className="tabular-nums">
               {pages} {pages === 1 ? "page" : "pages"}
             </Badge>
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="mt-1 flex flex-col gap-0.5 group-data-[collapsible=icon]:hidden">
+          }
+        >
+          <div className="flex flex-col gap-0.5">
             <div className="text-muted-foreground flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm">
               <FileTextIcon className="size-4 shrink-0" />
               <span className="flex-1 truncate">Cover</span>
@@ -99,110 +100,101 @@ export function AppSidebar() {
                 >
                   <Icon className="size-4 shrink-0" />
                   <span className="flex-1 truncate">{label}</span>
-                  <Switch
-                    size="sm"
-                    checked={on}
-                    onCheckedChange={(checked) => set((d) => (d[key].enabled = checked))}
-                  />
+                  <Switch size="sm" checked={on} onCheckedChange={(checked) => set((d) => (d[key].enabled = checked))} />
                 </label>
               );
             })}
-          </SidebarGroupContent>
-        </SidebarGroup>
+          </div>
+        </CollapsibleSection>
 
-        <SidebarSeparator className="my-1" />
+        {/* ---- Dynamic field editor (opens a form sheet) ---- */}
+        <SidebarGroup className="py-1">
+          <DetailsSheet />
+        </SidebarGroup>
 
         {/* ---- Branding ---- */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Branding</SidebarGroupLabel>
-          <SidebarGroupContent className="mt-1 group-data-[collapsible=icon]:hidden">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Popover>
-                  <PopoverTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md p-2 text-left text-sm outline-hidden transition-colors [&_svg]:size-4 [&_svg]:shrink-0">
-                    <PaletteIcon />
-                    <span className="flex-1 text-left">Accent colour</span>
-                    <span
-                      className="border-border size-4 rounded-full border shadow-sm"
-                      style={{ background: inv.meta.accent }}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-64">
-                    <PopoverHeader>
-                      <PopoverTitle>Accent colour</PopoverTitle>
-                      <PopoverDescription>Drives the blue highlights across the document.</PopoverDescription>
-                    </PopoverHeader>
-                    <div className="flex flex-wrap gap-2">
-                      {ACCENT_PRESETS.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          aria-label={c}
-                          onClick={() => set((d) => (d.meta.accent = c))}
-                          className={cn(
-                            "size-7 rounded-full border shadow-sm transition-transform hover:scale-110",
-                            inv.meta.accent.toLowerCase() === c.toLowerCase()
-                              ? "ring-ring ring-2 ring-offset-2"
-                              : "border-border"
-                          )}
-                          style={{ background: c }}
-                        />
-                      ))}
-                    </div>
-                    <label className="border-input flex items-center gap-3 rounded-md border px-3 py-2">
-                      <input
-                        type="color"
-                        value={inv.meta.accent}
-                        onChange={(e) => set((d) => (d.meta.accent = e.target.value))}
-                        className="size-8 cursor-pointer rounded border-0 bg-transparent p-0"
+        <CollapsibleSection label="Branding" defaultOpen>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Popover>
+                <PopoverTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md p-2 text-left text-sm outline-hidden transition-colors [&_svg]:size-4 [&_svg]:shrink-0">
+                  <PaletteIcon />
+                  <span className="flex-1 text-left">Accent colour</span>
+                  <span
+                    className="border-border size-4 rounded-full border shadow-sm"
+                    style={{ background: inv.meta.accent }}
+                  />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64">
+                  <PopoverHeader>
+                    <PopoverTitle>Accent colour</PopoverTitle>
+                    <PopoverDescription>Drives the blue highlights across the document.</PopoverDescription>
+                  </PopoverHeader>
+                  <div className="flex flex-wrap gap-2">
+                    {ACCENT_PRESETS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-label={c}
+                        onClick={() => set((d) => (d.meta.accent = c))}
+                        className={cn(
+                          "size-7 rounded-full border shadow-sm transition-transform hover:scale-110",
+                          inv.meta.accent.toLowerCase() === c.toLowerCase()
+                            ? "ring-ring ring-2 ring-offset-2"
+                            : "border-border"
+                        )}
+                        style={{ background: c }}
                       />
-                      <span className="text-muted-foreground font-mono text-xs uppercase">{inv.meta.accent}</span>
-                    </label>
-                  </PopoverContent>
-                </Popover>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Upload logo" onClick={() => logoRef.current?.click()}>
-                  <ImageIcon />
-                  <span>Upload logo</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator className="my-1" />
+                    ))}
+                  </div>
+                  <label className="border-input flex items-center gap-3 rounded-md border px-3 py-2">
+                    <input
+                      type="color"
+                      value={inv.meta.accent}
+                      onChange={(e) => set((d) => (d.meta.accent = e.target.value))}
+                      className="size-8 cursor-pointer rounded border-0 bg-transparent p-0"
+                    />
+                    <span className="text-muted-foreground font-mono text-xs uppercase">{inv.meta.accent}</span>
+                  </label>
+                </PopoverContent>
+              </Popover>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Upload logo" onClick={() => logoRef.current?.click()}>
+                <ImageIcon />
+                <span>Upload logo</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </CollapsibleSection>
 
         {/* ---- Data / file actions ---- */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Data</SidebarGroupLabel>
-          <SidebarGroupContent className="mt-1 group-data-[collapsible=icon]:hidden">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Import JSON" onClick={() => importRef.current?.click()}>
-                  <UploadIcon />
-                  <span>Import JSON</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Export JSON" onClick={onExport}>
-                  <DownloadIcon />
-                  <span>Export JSON</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Reset to template"
-                  onClick={onReset}
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <RotateCcwIcon />
-                  <span>Reset to template</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <CollapsibleSection label="Data" defaultOpen>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Import JSON" onClick={() => importRef.current?.click()}>
+                <UploadIcon />
+                <span>Import JSON</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Export JSON" onClick={onExport}>
+                <DownloadIcon />
+                <span>Export JSON</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Reset to template"
+                onClick={onReset}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <RotateCcwIcon />
+                <span>Reset to template</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </CollapsibleSection>
       </SidebarContent>
 
       <SidebarFooter className="border-t group-data-[collapsible=icon]:hidden">
