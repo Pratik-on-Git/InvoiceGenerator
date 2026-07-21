@@ -106,7 +106,7 @@ export function FeaturesSlice({ blocks, continued, isSectionEnd }: SectionSliceP
 
               {groupEnd && (
                 <>
-                  <AddButton label="feature" onAdd={() => set((d) => d.features.groups[groupIndex].items.push({ title: "New feature", desc: "Short description." }))} />
+                  <AddButton variant="secondary" label="feature" onAdd={() => set((d) => d.features.groups[groupIndex].items.push({ title: "New feature", desc: "Short description." }))} />
                   {groupIndex === features.groups.length - 1 && isSectionEnd && (
                     <AddButton label="feature group" onAdd={() => set((d) => d.features.groups.push(newGroup()))} />
                   )}
