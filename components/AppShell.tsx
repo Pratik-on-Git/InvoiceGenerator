@@ -1,22 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { InvoiceCtx, UICtx, type Updater, type SaveState } from "@/lib/state";
 import type { Invoice } from "@/lib/types";
 import { defaultInvoice } from "@/lib/defaultInvoice";
 import { pageCount } from "@/lib/summary";
-import { cn } from "@/lib/utils";
 
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "./shell/AppSidebar";
 import { AppHeader } from "./shell/AppHeader";
 import { AppFooter } from "./shell/AppFooter";
-import { DocToolbar } from "./shell/DocToolbar";
-import { SummaryStrip } from "./shell/SummaryStrip";
-import { Doc } from "./Doc";
 
 const STORAGE_KEY = "bmc-invoice-v1";
 
@@ -34,7 +30,13 @@ function merge<T>(base: T, over: unknown): T {
   return out as T;
 }
 
-export function Generator() {
+/**
+ * The persistent application shell: sidebar + top navbar + footer, plus the
+ * invoice/UI state providers. It lives in the root layout, so it stays mounted
+ * (and its state survives) as the user navigates between the document view (`/`)
+ * and the edit form (`/edit`). Each route renders into `children`.
+ */
+export function AppShell({ children }: { children: ReactNode }) {
   const [inv, setInv] = useState<Invoice>(defaultInvoice);
   const [editing, setEditing] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -42,10 +44,13 @@ export function Generator() {
   const [pageTotal, setPageTotal] = useState(() => pageCount(defaultInvoice));
   const hydrated = useRef(false);
 
-  // Load once on mount.
+  // Load once on mount. This must run after mount, not in a useState initializer:
+  // localStorage is unavailable during SSR, so the server renders the default and
+  // the client swaps in the saved document once hydrated.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration-safe load
       if (raw) setInv(merge(defaultInvoice, JSON.parse(raw)));
     } catch {
       /* ignore corrupt storage */
@@ -143,21 +148,26 @@ export function Generator() {
   return (
     <InvoiceCtx.Provider value={{ inv, set, editing }}>
       <UICtx.Provider
-        value={{ editing, setEditing, saveState, pageTotal, zoom, setZoom, onDownload, onExport, onImport, onReset, onLogo }}
+        value={{
+          editing,
+          setEditing,
+          saveState,
+          pageTotal,
+          setPageTotal,
+          zoom,
+          setZoom,
+          onDownload,
+          onExport,
+          onImport,
+          onReset,
+          onLogo,
+        }}
       >
         <div className="flex min-h-svh w-full min-w-0 flex-1">
           <AppSidebar />
           <SidebarInset className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <AppHeader />
-            <div className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col gap-4 p-3 sm:p-4">
-              <SummaryStrip />
-              <DocToolbar />
-              <div className={cn("stage min-w-0 flex-1 rounded-xl border", editing && "editing")}>
-                <div className="doc-scaler mx-auto w-fit" style={{ zoom } as CSSProperties}>
-                  <Doc onPageCountChange={setPageTotal} />
-                </div>
-              </div>
-            </div>
+            {children}
             <AppFooter />
           </SidebarInset>
         </div>

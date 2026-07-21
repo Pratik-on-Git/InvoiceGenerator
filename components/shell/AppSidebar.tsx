@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CheckCircle2Icon,
   ClipboardListIcon,
@@ -12,6 +14,7 @@ import {
   RotateCcwIcon,
   ScrollTextIcon,
   SparklesIcon,
+  SquarePenIcon,
   TriangleAlertIcon,
   UploadIcon,
   WalletIcon,
@@ -44,8 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Logo } from "./Logo";
-import { DetailsSheet } from "./DetailsSheet";
-import { CollapsibleSection } from "./SidebarSection";
+import { CollapsibleSection, sectionTriggerClass } from "./SidebarSection";
 
 const SECTIONS: { key: SectionKey; label: string; icon: LucideIcon }[] = [
   { key: "scope", label: "Scope & Deliverables", icon: ClipboardListIcon },
@@ -60,6 +62,7 @@ const ACCENT_PRESETS = ["#005ef9", "#7c3aed", "#0ea5e9", "#059669", "#e11d48", "
 export function AppSidebar() {
   const { inv, set } = useInvoice();
   const { saveState, pageTotal: pages, onExport, onImport, onReset, onLogo } = useUI();
+  const pathname = usePathname();
   const importRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
 
@@ -107,9 +110,20 @@ export function AppSidebar() {
           </div>
         </CollapsibleSection>
 
-        {/* ---- Dynamic field editor (opens a form sheet) ---- */}
+        {/* ---- Dynamic field editor (its own /edit route) ---- */}
         <SidebarGroup className="py-1">
-          <DetailsSheet />
+          <Link
+            href="/edit"
+            className={cn(
+              sectionTriggerClass,
+              pathname === "/edit" && "bg-sidebar-accent text-sidebar-foreground"
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <SquarePenIcon className="size-4 shrink-0" />
+              <span className="truncate">Edit Details</span>
+            </span>
+          </Link>
         </SidebarGroup>
 
         {/* ---- Branding ---- */}
